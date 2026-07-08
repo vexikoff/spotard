@@ -140,6 +140,20 @@ export default function SpotMap({
           [85, 180],
         ]}
       />
+      {style.value === 'satellite' && (
+        <TileLayer
+          key="satellite-labels"
+          attribution="&copy; CARTO"
+          url="https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}{r}.png"
+          subdomains="abcd"
+          maxZoom={19}
+          noWrap={true}
+          bounds={[
+            [-85, -180],
+            [85, 180],
+          ]}
+        />
+      )}
       <ClickHandler onMapClick={onMapClick} />
       <FlyTo target={flyTarget} />
       <ZoomTracker onZoom={setZoom} />
