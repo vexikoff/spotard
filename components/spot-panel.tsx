@@ -304,6 +304,7 @@ function SpotDetails({
   deleting,
   isOwner,
   canReport,
+  isStaff,
   onEdit,
   onDelete,
   onReport,
@@ -313,6 +314,7 @@ function SpotDetails({
   deleting: boolean
   isOwner: boolean
   canReport: boolean
+  isStaff: boolean
   onEdit: () => void
   onDelete: () => void
   onReport: (reason: string) => Promise<void>
@@ -430,7 +432,7 @@ function SpotDetails({
       </div>
 
       {/* Report (жалоба) */}
-      {canReport && !isOwner && (
+      {canReport && (!isOwner || isStaff) && (
         <div className="flex flex-col gap-2">
           {reportDone ? (
             <p className="font-mono text-xs text-primary">Жалоба отправлена — модератор её рассмотрит</p>
@@ -546,6 +548,7 @@ export default function SpotPanel({
               deleting={deleting}
               isOwner={isOwner}
               canReport={Boolean(currentUserId)}
+              isStaff={isStaff}
               onEdit={onEdit}
               onDelete={onDelete}
               onReport={onReport}
