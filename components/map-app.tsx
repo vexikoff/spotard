@@ -10,6 +10,7 @@ import useSWR from 'swr'
 import {
   approveReportAndDeleteSpot,
   createSpot,
+  deleteMessage,
   deleteSpot,
   dismissReport,
   getIpLocation,
@@ -44,7 +45,7 @@ export default function MapApp({ initialSpots }: { initialSpots: Spot[] }) {
   const router = useRouter()
   const { data: session, isPending: sessionLoading } = authClient.useSession()
   const currentUserId = session?.user?.id ?? null
-  const role = getUserRole(session?.user?.email)
+  const role = getUserRole(session?.user?.email, session?.user?.name)
   const isAdmin = role === 'admin'
   const isStaff = role === 'admin' || role === 'moderator'
 
@@ -52,34 +53,6 @@ export default function MapApp({ initialSpots }: { initialSpots: Spot[] }) {
     fallbackData: initialSpots,
     refreshInterval: 60000,
   })
-
-  // Real-time updates via Pusher
-  useEffect(() => {
-    const pusherKey = process.env.NEXT_PUBLIC_PUSHER_KEY || '7e1bccd74cc3954ced0d'
-    const pusherCluster = process.env.NEXT_PUBLIC_PUSHER_CLUSTER || 'eu'
-
-    const pusher = new Pusher(pusherKey, {
-      cluster: pusherCluster,
-    })
-
-    const channel = pusher.subscribe('spots')
-
-    channel.bind('created', () => {
-      mutate()
-    })
-    channel.bind('updated', () => {
-      mutate()
-    })
-    channel.bind('deleted', () => {
-      mutate()
-    })
-
-    return () => {
-      channel.unbind_all()
-      channel.unsubscribe()
-      pusher.disconnect()
-    }
-  }, [mutate])
 
   const { data: openReports = [], mutate: mutateReports } = useSWR(
     isStaff ? 'reports' : null,
@@ -137,9 +110,43 @@ export default function MapApp({ initialSpots }: { initialSpots: Spot[] }) {
   const { data: chatMessages = [], mutate: mutateChat } = useSWR(
     chatOpen ? 'chat' : null,
     () => getMessages(),
-    { refreshInterval: 5000 },
+    { refreshInterval: 60000 },
   )
   const [chatText, setChatText] = useState('')
+
+  // Real-time updates via Pusher
+  useEffect(() => {
+    const pusherKey = process.env.NEXT_PUBLIC_PUSHER_KEY || '7e1bccd74cc3954ced0d'
+    const pusherCluster = process.env.NEXT_PUBLIC_PUSHER_CLUSTER || 'eu'
+
+    const pusher = new Pusher(pusherKey, {
+      cluster: pusherCluster,
+    })
+
+    const channel = pusher.subscribe('spots')
+
+    channel.bind('created', () => {
+      mutate()
+    })
+    channel.bind('updated', () => {
+      mutate()
+    })
+    channel.bind('deleted', () => {
+      mutate()
+    })
+    channel.bind('message_created', () => {
+      mutateChat()
+    })
+    channel.bind('message_deleted', () => {
+      mutateChat()
+    })
+
+    return () => {
+      channel.unbind_all()
+      channel.unsubscribe()
+      pusher.disconnect()
+    }
+  }, [mutate, mutateChat])
   const [chatSending, setChatSending] = useState(false)
 
   async function handleSendMessage() {
@@ -637,7 +644,21 @@ export default function MapApp({ initialSpots }: { initialSpots: Spot[] }) {
           <div className="flex flex-1 flex-col-reverse gap-2 overflow-y-auto px-5 py-2">
             {[...chatMessages].reverse().map((m) => (
               <div key={m.id} className={cn('flex max-w-[85%] flex-col gap-0.5 rounded-xl px-3 py-2', m.userId === currentUserId ? 'self-end bg-primary/20' : 'self-start bg-secondary')}>
-                <span className="font-mono text-[9px] font-bold text-primary uppercase">{m.authorName}</span>
+                <div className="flex items-center justify-between gap-4">
+                  <span className="font-mono text-[9px] font-bold text-primary uppercase">{m.authorName}</span>
+                  {isStaff && (
+                    <button
+                      onClick={async () => {
+                        await deleteMessage(m.id)
+                        await mutateChat()
+                      }}
+                      className="font-mono text-[9px] text-muted-foreground hover:text-destructive transition-colors"
+                      aria-label="Удалить сообщение"
+                    >
+                      удалить
+                    </button>
+                  )}
+                </div>
                 <p className="text-sm leading-snug">{m.text}</p>
               </div>
             ))}
