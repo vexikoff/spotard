@@ -54,12 +54,12 @@ const SPOT_TYPES = [
   'indoor',
 ]
 
-function isAdmin(user: { email: string }) {
-  return getUserRole(user.email) === 'admin'
+function isAdmin(user: { email: string; name?: string | null }) {
+  return getUserRole(user.email, user.name) === 'admin'
 }
 
-function isStaff(user: { email: string }) {
-  const role = getUserRole(user.email)
+function isStaff(user: { email: string; name?: string | null }) {
+  const role = getUserRole(user.email, user.name)
   return role === 'admin' || role === 'moderator'
 }
 const SURFACES = ['concrete', 'asphalt', 'wood', 'metal', 'marble', 'brick', 'dirt']
@@ -240,7 +240,18 @@ export async function sendMessage(text: string): Promise<void> {
   const sessionUser = await getSessionUser()
   const clean = text.trim().slice(0, 400)
   if (!clean) throw new Error('Пустое сообщение')
-  await db.insert(messages).values({ text: clean, userId: sessionUser.id, authorName: sessionUser.name })
+  const [created] = await db
+    .insert(messages)
+    .values({ text: clean, userId: sessionUser.id, authorName: sessionUser.name })
+    .returning()
+  await triggerPusher('spots', 'message_created', created)
+}
+
+export async function deleteMessage(id: number): Promise<void> {
+  const sessionUser = await getSessionUser()
+  if (!isStaff(sessionUser)) throw new Error('Нет доступа')
+  await db.delete(messages).where(eq(messages.id, id))
+  await triggerPusher('spots', 'message_deleted', { id })
 }
 
 export async function getIpLocation(): Promise<{ lat: number; lng: number } | null> {
