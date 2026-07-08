@@ -476,7 +476,6 @@ export default function MapApp({ initialSpots }: { initialSpots: Spot[] }) {
           <div className="pointer-events-auto hidden md:block">
             {accountBadge}
           </div>
-        </div>
       </header>
 
       {/* Staff reports panel */}
