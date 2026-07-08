@@ -238,3 +238,76 @@ export async function sendMessage(text: string): Promise<void> {
   if (!clean) throw new Error('Пустое сообщение')
   await db.insert(messages).values({ text: clean, userId: sessionUser.id, authorName: sessionUser.name })
 }
+
+export async function getIpLocation(): Promise<{ lat: number; lng: number } | null> {
+  try {
+    const reqHeaders = await headers()
+    const latStr = reqHeaders.get('x-vercel-ip-latitude')
+    const lngStr = reqHeaders.get('x-vercel-ip-longitude')
+    
+    if (latStr && lngStr) {
+      const lat = parseFloat(latStr)
+      const lng = parseFloat(lngStr)
+      if (!isNaN(lat) && !isNaN(lng)) {
+        return { lat, lng }
+      }
+    }
+
+    const forwardedFor = reqHeaders.get('x-forwarded-for')
+    const realIp = reqHeaders.get('x-real-ip')
+    const ip = forwardedFor ? forwardedFor.split(',')[0].trim() : (realIp || '')
+
+    // If we have an IP, lookup on the server side to bypass browser client-side blocking
+    if (ip && ip !== '::1' && ip !== '127.0.0.1') {
+      const res = await fetch(`https://ipapi.co/${ip}/json/`, { next: { revalidate: 3600 } })
+      if (res.ok) {
+        const data = await res.json()
+        if (data && typeof data.latitude === 'number' && typeof data.longitude === 'number') {
+          return { lat: data.latitude, lng: data.longitude }
+        }
+      }
+    } else {
+      // If running locally, check raw ipapi.co
+      const res = await fetch('https://ipapi.co/json/', { next: { revalidate: 3600 } })
+      if (res.ok) {
+        const data = await res.json()
+        if (data && typeof data.latitude === 'number' && typeof data.longitude === 'number') {
+          return { lat: data.latitude, lng: data.longitude }
+        }
+      }
+    }
+  } catch (err) {
+    console.error('Server-side IP location lookup failed:', err)
+  }
+
+  // Fallback to freeipapi.com
+  try {
+    const reqHeaders = await headers()
+    const forwardedFor = reqHeaders.get('x-forwarded-for')
+    const realIp = reqHeaders.get('x-real-ip')
+    const ip = forwardedFor ? forwardedFor.split(',')[0].trim() : (realIp || '')
+
+    if (ip && ip !== '::1' && ip !== '127.0.0.1') {
+      const res = await fetch(`https://freeipapi.com/api/json/${ip}`, { next: { revalidate: 3600 } })
+      if (res.ok) {
+        const data = await res.json()
+        if (data && typeof data.latitude === 'number' && typeof data.longitude === 'number') {
+          return { lat: data.latitude, lng: data.longitude }
+        }
+      }
+    } else {
+      const res = await fetch('https://freeipapi.com/api/json', { next: { revalidate: 3600 } })
+      if (res.ok) {
+        const data = await res.json()
+        if (data && typeof data.latitude === 'number' && typeof data.longitude === 'number') {
+          return { lat: data.latitude, lng: data.longitude }
+        }
+      }
+    }
+  } catch (err) {
+    console.error('Server-side freeipapi.com lookup failed:', err)
+  }
+
+  return null
+}
+
