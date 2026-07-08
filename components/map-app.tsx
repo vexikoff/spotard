@@ -3,7 +3,7 @@
 import dynamic from 'next/dynamic'
 import Image from 'next/image'
 import Link from 'next/link'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import Pusher from 'pusher-js'
 import { useRouter } from 'next/navigation'
 import useSWR from 'swr'
@@ -107,6 +107,16 @@ export default function MapApp({ initialSpots }: { initialSpots: Spot[] }) {
 
   // Chat
   const [chatOpen, setChatOpen] = useState(false)
+  const [hasUnread, setHasUnread] = useState(false)
+  const chatOpenRef = useRef(chatOpen)
+
+  useEffect(() => {
+    chatOpenRef.current = chatOpen
+    if (chatOpen) {
+      setHasUnread(false)
+    }
+  }, [chatOpen])
+
   const { data: chatMessages = [], mutate: mutateChat } = useSWR(
     chatOpen ? 'chat' : null,
     () => getMessages(),
@@ -136,6 +146,9 @@ export default function MapApp({ initialSpots }: { initialSpots: Spot[] }) {
     })
     channel.bind('message_created', () => {
       mutateChat()
+      if (!chatOpenRef.current) {
+        setHasUnread(true)
+      }
     })
     channel.bind('message_deleted', () => {
       mutateChat()
@@ -385,11 +398,17 @@ export default function MapApp({ initialSpots }: { initialSpots: Spot[] }) {
             onClick={() => setChatOpen(!chatOpen)}
             aria-expanded={chatOpen}
             className={cn(
-              'rounded-xl px-3.5 py-2.5 font-mono text-xs font-bold shadow-2xl backdrop-blur-md transition-colors',
+              'flex items-center gap-1.5 rounded-xl px-3.5 py-2.5 font-mono text-xs font-bold shadow-2xl backdrop-blur-md transition-colors',
               chatOpen ? 'bg-white text-black' : 'bg-black/85 text-white/80 hover:text-white',
             )}
           >
             Чат
+            {hasUnread && (
+              <span className="relative flex size-2">
+                <span className="absolute -inset-[1px] inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full size-2 bg-emerald-500"></span>
+              </span>
+            )}
           </button>
 
           {/* Telegram channel */}
@@ -494,11 +513,17 @@ export default function MapApp({ initialSpots }: { initialSpots: Spot[] }) {
               onClick={() => setChatOpen(!chatOpen)}
               aria-expanded={chatOpen}
               className={cn(
-                'rounded-xl px-3.5 py-2.5 font-mono text-xs font-bold shadow-2xl backdrop-blur-md transition-colors',
+                'flex items-center gap-1.5 rounded-xl px-3.5 py-2.5 font-mono text-xs font-bold shadow-2xl backdrop-blur-md transition-colors',
                 chatOpen ? 'bg-white text-black' : 'bg-black/85 text-white/80 hover:text-white',
               )}
             >
               Чат
+              {hasUnread && (
+                <span className="relative flex size-2">
+                  <span className="absolute -inset-[1px] inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full size-2 bg-emerald-500"></span>
+                </span>
+              )}
             </button>
           </div>
         </div>
