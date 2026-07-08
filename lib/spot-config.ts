@@ -7,8 +7,7 @@ export const ADMIN_EMAILS = [
 
 export const ADMIN_NAMES = [
   'Claus_Maslov',
-  'Claus Maslov',
-  'claus_maslov',
+  'vexikoff',
   'admin'
 ]
 
