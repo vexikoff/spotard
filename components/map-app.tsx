@@ -427,7 +427,7 @@ export default function MapApp({ initialSpots }: { initialSpots: Spot[] }) {
                         disabled={reportBusy === r.id}
                         className="flex-1 rounded-lg bg-destructive px-3 py-2 text-xs font-bold text-white transition-opacity hover:opacity-85 disabled:opacity-50"
                       >
-                        {reportBusy === r.id ? '...' : 'Уд��лить спот'}
+                        {reportBusy === r.id ? '...' : 'Уд  лить спот'}
                       </button>
                       <button
                         onClick={() => handleDismissReport(r.id)}
@@ -658,15 +658,6 @@ export default function MapApp({ initialSpots }: { initialSpots: Spot[] }) {
               )
             })}
           </div>
-        </div>
-      )}
-
-      {/* Mobile hint */}
-      {!mode && !notice && (
-        <div className="pointer-events-none absolute inset-x-4 bottom-4 z-[1000] md:hidden">
-          <p className="rounded-xl bg-black/85 px-4 py-2.5 text-center font-mono text-xs text-white/60 shadow-2xl backdrop-blur-md">
-            {currentUserId ? 'Тапни по карте, чтобы добавить спот' : 'Войди, чтобы добавлять споты'}
-          </p>
         </div>
       )}
 
