@@ -1,0 +1,240 @@
+'use server'
+
+import { headers } from 'next/headers'
+import { auth } from '@/lib/auth'
+import { db } from '@/lib/db'
+import { comments, messages, reports, spots, type Comment, type Message, type Report, type Spot } from '@/lib/db/schema'
+import { getUserRole } from '@/lib/spot-config'
+import { and, desc, eq } from 'drizzle-orm'
+
+export type SpotInput = {
+  name: string
+  lat: number
+  lng: number
+  spotType: string
+  difficulty: number
+  surface: string
+  security: string
+  lighting: boolean
+  covered: boolean
+  description: string
+  tags: string
+}
+
+const SPOT_TYPES = [
+  'street',
+  'park',
+  'rail',
+  'stairs',
+  'ledge',
+  'gap',
+  'bowl',
+  'manual',
+  'flat',
+  'diy',
+  'hubba',
+  'plaza',
+  'polejam',
+  'pumptrack',
+  'dirt',
+  'trials',
+  'wallride',
+  'bmxtrack',
+  'drop',
+  'downhill',
+  'foampit',
+  'bank',
+  'curb',
+  'quarterpipe',
+  'halfpipe',
+  'funbox',
+  'spine',
+  'snakerun',
+  'indoor',
+]
+
+function isAdmin(user: { email: string }) {
+  return getUserRole(user.email) === 'admin'
+}
+
+function isStaff(user: { email: string }) {
+  const role = getUserRole(user.email)
+  return role === 'admin' || role === 'moderator'
+}
+const SURFACES = ['concrete', 'asphalt', 'wood', 'metal', 'marble', 'brick', 'dirt']
+const SECURITY = ['chill', 'medium', 'strict']
+
+async function getSessionUser() {
+  const session = await auth.api.getSession({ headers: await headers() })
+  if (!session?.user) throw new Error('Войди в аккаунт, чтобы делать это')
+  return session.user
+}
+
+function validate(input: SpotInput): SpotInput {
+  const name = input.name.trim().slice(0, 80)
+  if (!name) throw new Error('Name is required')
+  if (typeof input.lat !== 'number' || typeof input.lng !== 'number' || Number.isNaN(input.lat) || Number.isNaN(input.lng)) {
+    throw new Error('Invalid coordinates')
+  }
+  return {
+    name,
+    lat: input.lat,
+    lng: input.lng,
+    spotType: SPOT_TYPES.includes(input.spotType) ? input.spotType : 'street',
+    difficulty: Math.min(5, Math.max(1, Math.round(input.difficulty) || 3)),
+    surface: SURFACES.includes(input.surface) ? input.surface : 'concrete',
+    security: SECURITY.includes(input.security) ? input.security : 'chill',
+    lighting: Boolean(input.lighting),
+    covered: Boolean(input.covered),
+    description: input.description.trim().slice(0, 1000),
+    tags: input.tags.trim().slice(0, 200),
+  }
+}
+
+// Everyone can view all spots (it's a shared community map)
+export async function getSpots(): Promise<Spot[]> {
+  return db.select().from(spots).orderBy(desc(spots.createdAt))
+}
+
+export async function createSpot(input: SpotInput): Promise<Spot> {
+  const sessionUser = await getSessionUser()
+  const data = validate(input)
+  const [created] = await db
+    .insert(spots)
+    .values({ ...data, userId: sessionUser.id, authorName: sessionUser.name })
+    .returning()
+  return created
+}
+
+export async function updateSpot(id: number, input: SpotInput): Promise<Spot> {
+  const sessionUser = await getSessionUser()
+  const data = validate(input)
+  const [existing] = await db.select().from(spots).where(eq(spots.id, id))
+  if (!existing) throw new Error('Спот не найден')
+  // Only the owner or the admin can edit a spot. Legacy spots (no owner) get claimed by the editor.
+  if (existing.userId && existing.userId !== sessionUser.id && !isAdmin(sessionUser)) {
+    throw new Error('Это чужой спот — редактировать может только автор')
+  }
+  const [updated] = await db
+    .update(spots)
+    .set({ ...data, userId: existing.userId ?? sessionUser.id, authorName: existing.userId ? existing.authorName : sessionUser.name })
+    .where(eq(spots.id, id))
+    .returning()
+  return updated
+}
+
+export async function deleteSpot(id: number): Promise<void> {
+  const sessionUser = await getSessionUser()
+  const [existing] = await db.select().from(spots).where(eq(spots.id, id))
+  if (!existing) return
+  if (existing.userId && existing.userId !== sessionUser.id && !isAdmin(sessionUser)) {
+    throw new Error('Это чужой спот — удалить может только автор')
+  }
+  await db.delete(spots).where(eq(spots.id, id))
+  await db.delete(reports).where(eq(reports.spotId, id))
+}
+
+// --- Reports (жалобы) -------------------------------------------------------
+
+export async function reportSpot(spotId: number, reason: string): Promise<void> {
+  const sessionUser = await getSessionUser()
+  const [existing] = await db.select().from(spots).where(eq(spots.id, spotId))
+  if (!existing) throw new Error('Спот не найден')
+  const cleanReason = reason.trim().slice(0, 500)
+  if (!cleanReason) throw new Error('Опиши причину жалобы')
+  // One open report per user per spot
+  const [dup] = await db
+    .select()
+    .from(reports)
+    .where(and(eq(reports.spotId, spotId), eq(reports.reporterId, sessionUser.id), eq(reports.status, 'open')))
+  if (dup) throw new Error('Ты уже отправил жалобу на этот спот')
+  await db.insert(reports).values({
+    spotId,
+    reason: cleanReason,
+    reporterId: sessionUser.id,
+    reporterName: sessionUser.name,
+  })
+}
+
+export type ReportWithSpot = Report & { spotName: string | null }
+
+// Staff only: list open reports with spot names
+export async function getOpenReports(): Promise<ReportWithSpot[]> {
+  const sessionUser = await getSessionUser()
+  if (!isStaff(sessionUser)) throw new Error('Нет доступа')
+  const rows = await db
+    .select({
+      report: reports,
+      spotName: spots.name,
+    })
+    .from(reports)
+    .leftJoin(spots, eq(reports.spotId, spots.id))
+    .where(eq(reports.status, 'open'))
+    .orderBy(desc(reports.createdAt))
+  return rows.map((r) => ({ ...r.report, spotName: r.spotName }))
+}
+
+// Staff: dismiss a report (spot stays)
+export async function dismissReport(reportId: number): Promise<void> {
+  const sessionUser = await getSessionUser()
+  if (!isStaff(sessionUser)) throw new Error('Нет доступа')
+  await db.update(reports).set({ status: 'dismissed' }).where(eq(reports.id, reportId))
+}
+
+// Staff: approve a report and delete the reported spot.
+// Admin can delete anything anywhere; moderator can delete ONLY via an open report.
+export async function approveReportAndDeleteSpot(reportId: number): Promise<void> {
+  const sessionUser = await getSessionUser()
+  if (!isStaff(sessionUser)) throw new Error('Нет доступа')
+  const [report] = await db.select().from(reports).where(eq(reports.id, reportId))
+  if (!report) throw new Error('Жалоба не найдена')
+  if (report.status !== 'open') throw new Error('Жалоба уже рассмотрена')
+  await db.delete(spots).where(eq(spots.id, report.spotId))
+  await db.update(reports).set({ status: 'approved' }).where(eq(reports.id, reportId))
+  // Close remaining open reports on the same spot
+  await db
+    .update(reports)
+    .set({ status: 'dismissed' })
+    .where(and(eq(reports.spotId, report.spotId), eq(reports.status, 'open')))
+}
+
+// --- Comments (комментарии к спотам) ----------------------------------------
+
+export async function getComments(spotId: number): Promise<Comment[]> {
+  return db.select().from(comments).where(eq(comments.spotId, spotId)).orderBy(desc(comments.createdAt))
+}
+
+export async function addComment(spotId: number, text: string): Promise<Comment> {
+  const sessionUser = await getSessionUser()
+  const clean = text.trim().slice(0, 500)
+  if (!clean) throw new Error('Пустой комментарий')
+  const [created] = await db
+    .insert(comments)
+    .values({ spotId, text: clean, userId: sessionUser.id, authorName: sessionUser.name })
+    .returning()
+  return created
+}
+
+export async function deleteComment(id: number): Promise<void> {
+  const sessionUser = await getSessionUser()
+  const [existing] = await db.select().from(comments).where(eq(comments.id, id))
+  if (!existing) return
+  if (existing.userId !== sessionUser.id && !isStaff(sessionUser)) {
+    throw new Error('Удалить может только автор')
+  }
+  await db.delete(comments).where(eq(comments.id, id))
+}
+
+// --- Global chat -------------------------------------------------------------
+
+export async function getMessages(): Promise<Message[]> {
+  const rows = await db.select().from(messages).orderBy(desc(messages.createdAt)).limit(60)
+  return rows.reverse()
+}
+
+export async function sendMessage(text: string): Promise<void> {
+  const sessionUser = await getSessionUser()
+  const clean = text.trim().slice(0, 400)
+  if (!clean) throw new Error('Пустое сообщение')
+  await db.insert(messages).values({ text: clean, userId: sessionUser.id, authorName: sessionUser.name })
+}
