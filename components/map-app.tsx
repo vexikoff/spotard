@@ -131,13 +131,53 @@ export default function MapApp({ initialSpots }: { initialSpots: Spot[] }) {
   // Geolocation (моё местоположение)
   function locateMe() {
     if (!navigator.geolocation) {
-      flashNotice('Геолокация недоступна')
+      fallbackToIpLocation()
       return
     }
     navigator.geolocation.getCurrentPosition(
       (pos) => setFlyTarget({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-      () => flashNotice('Не удалось определить местоположение'),
+      () => {
+        fallbackToIpLocation()
+      },
+      {
+        enableHighAccuracy: false,
+        timeout: 5000,
+        maximumAge: 600000,
+      }
     )
+  }
+
+  function fallbackToIpLocation() {
+    fetch('https://ipapi.co/json/')
+      .then((res) => {
+        if (!res.ok) throw new Error('ipapi failed')
+        return res.json()
+      })
+      .then((data) => {
+        if (data && typeof data.latitude === 'number' && typeof data.longitude === 'number') {
+          setFlyTarget({ lat: data.latitude, lng: data.longitude })
+        } else {
+          throw new Error('Invalid data from ipapi')
+        }
+      })
+      .catch((err) => {
+        console.warn('ipapi fallback failed, trying freeipapi...', err)
+        fetch('https://freeipapi.com/api/json')
+          .then((res) => {
+            if (!res.ok) throw new Error('freeipapi failed')
+            return res.json()
+          })
+          .then((data) => {
+            if (data && typeof data.latitude === 'number' && typeof data.longitude === 'number') {
+              setFlyTarget({ lat: data.latitude, lng: data.longitude })
+            } else {
+              throw new Error('Invalid data from freeipapi')
+            }
+          })
+          .catch(() => {
+            flashNotice('Не удалось определить местоположение')
+          })
+      })
   }
 
   function flashNotice(msg: string) {
