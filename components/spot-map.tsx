@@ -70,14 +70,22 @@ function ClickHandler({ onMapClick }: { onMapClick: (p: DraftPoint) => void }) {
 
 function FlyTo({ target }: { target: DraftPoint | null }) {
   const map = useMap()
-  const lastRef = useRef<string>('')
+  const lastTargetRef = useRef<string>('')
+
   useEffect(() => {
     if (!target) return
     const key = `${target.lat},${target.lng}`
-    if (key === lastRef.current) return
-    lastRef.current = key
+    
+    const center = map.getCenter()
+    const isCentered = Math.abs(center.lat - target.lat) < 0.0001 && Math.abs(center.lng - target.lng) < 0.0001
+    const isZoomed = map.getZoom() >= 16
+
+    if (isCentered && isZoomed && key === lastTargetRef.current) return
+
+    lastTargetRef.current = key
     map.flyTo([target.lat, target.lng], Math.max(map.getZoom(), 16), { duration: 0.8 })
   }, [target, map])
+
   return null
 }
 
