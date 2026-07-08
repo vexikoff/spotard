@@ -3,7 +3,8 @@
 import dynamic from 'next/dynamic'
 import Image from 'next/image'
 import Link from 'next/link'
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
+import Pusher from 'pusher-js'
 import { useRouter } from 'next/navigation'
 import useSWR from 'swr'
 import {
@@ -49,7 +50,36 @@ export default function MapApp({ initialSpots }: { initialSpots: Spot[] }) {
 
   const { data: spots = initialSpots, mutate } = useSWR('spots', () => getSpots(), {
     fallbackData: initialSpots,
+    refreshInterval: 60000,
   })
+
+  // Real-time updates via Pusher
+  useEffect(() => {
+    const pusherKey = process.env.NEXT_PUBLIC_PUSHER_KEY || '7e1bccd74cc3954ced0d'
+    const pusherCluster = process.env.NEXT_PUBLIC_PUSHER_CLUSTER || 'eu'
+
+    const pusher = new Pusher(pusherKey, {
+      cluster: pusherCluster,
+    })
+
+    const channel = pusher.subscribe('spots')
+
+    channel.bind('created', () => {
+      mutate()
+    })
+    channel.bind('updated', () => {
+      mutate()
+    })
+    channel.bind('deleted', () => {
+      mutate()
+    })
+
+    return () => {
+      channel.unbind_all()
+      channel.unsubscribe()
+      pusher.disconnect()
+    }
+  }, [mutate])
 
   const { data: openReports = [], mutate: mutateReports } = useSWR(
     isStaff ? 'reports' : null,
@@ -334,9 +364,12 @@ export default function MapApp({ initialSpots }: { initialSpots: Spot[] }) {
             href="https://t.me/spotard"
             target="_blank"
             rel="noopener noreferrer"
+            aria-label="Telegram"
             className="rounded-xl bg-black/85 px-3.5 py-2.5 font-mono text-xs font-bold text-white/80 shadow-2xl backdrop-blur-md transition-colors hover:text-white"
           >
-            ТГК
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className="inline">
+              <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.562 8.161c-.18.718-1.077 4.996-1.528 7.375-.192 1.01-.564 1.348-.923 1.38-.78.07-1.372-.516-2.128-1.012-1.184-.777-1.854-1.258-3.003-2.015-1.328-.875-.467-1.357.29-2.143.198-.206 3.636-3.334 3.702-3.616.008-.035.015-.166-.062-.234-.078-.068-.193-.045-.276-.026-.118.027-2.003 1.272-5.65 3.727-.534.366-1.019.546-1.454.537-.48-.01-1.403-.27-2.09-.494-.842-.274-1.512-.42-1.454-.886.03-.243.364-.492.999-.748 3.914-1.704 6.522-2.829 7.822-3.376 3.724-1.56 4.498-1.83 5.003-1.84.111-.002.359.025.519.155.135.109.172.256.186.368.014.114.02.385.01.554z"/>
+            </svg>
           </a>
 
           {/* Settings */}
@@ -449,7 +482,7 @@ export default function MapApp({ initialSpots }: { initialSpots: Spot[] }) {
                         disabled={reportBusy === r.id}
                         className="flex-1 rounded-lg bg-destructive px-3 py-2 text-xs font-bold text-white transition-opacity hover:opacity-85 disabled:opacity-50"
                       >
-                        {reportBusy === r.id ? '...' : 'Уд  лить спот'}
+                        {reportBusy === r.id ? '...' : 'Уд��лить спот'}
                       </button>
                       <button
                         onClick={() => handleDismissReport(r.id)}
