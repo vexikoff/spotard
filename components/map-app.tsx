@@ -378,9 +378,9 @@ export default function MapApp({ initialSpots }: { initialSpots: Spot[] }) {
         </div>
 
         {/* Bottom row / Inline block: Search and action buttons */}
-        <div className="flex w-full md:w-auto flex-col md:flex-row items-stretch md:items-center gap-2">
-          {/* Search: full-width on mobile, 208px wide on desktop */}
-          <div className="pointer-events-auto w-full md:w-auto">
+        <div className="flex w-full md:w-auto flex-row items-center justify-between gap-2">
+          {/* Search: takes remaining space on mobile, 208px wide on desktop */}
+          <div className="pointer-events-auto flex-1 md:flex-none">
             <input
               type="search"
               value={search}
@@ -391,24 +391,37 @@ export default function MapApp({ initialSpots }: { initialSpots: Spot[] }) {
             />
           </div>
 
-          {/* Chat: full-width on mobile, inline on desktop */}
-          <div className="pointer-events-auto w-full md:w-auto">
+          {/* Chat: inline button next to search on mobile */}
+          <div className="pointer-events-auto shrink-0 md:hidden">
             <button
               onClick={() => setChatOpen(!chatOpen)}
               aria-expanded={chatOpen}
               className={cn(
-                'w-full md:w-auto rounded-xl px-3.5 py-2.5 font-mono text-xs font-bold shadow-2xl backdrop-blur-md transition-colors',
+                'rounded-xl px-3.5 py-2.5 font-mono text-xs font-bold shadow-2xl backdrop-blur-md transition-colors',
                 chatOpen ? 'bg-white text-black' : 'bg-black/85 text-white/80 hover:text-white',
               )}
             >
               Чат
             </button>
           </div>
+        </div>
 
-          {/* Utility / Action buttons: vertical stack floating on the right side on mobile, horizontal row next to search on desktop */}
-          <div className="pointer-events-auto flex flex-col md:flex-row items-end md:items-center gap-2 absolute md:static right-3 top-[154px] md:top-auto md:right-auto z-[1000]">
-            {/* Telegram channel */}
-            <a
+        {/* Utility / Action buttons: vertical stack floating on the right side on mobile, horizontal row next to search on desktop */}
+        <div className="pointer-events-auto flex flex-col md:flex-row items-end md:items-center gap-2 absolute md:static right-3 top-[112px] md:top-auto md:right-auto z-[1000]">
+          {/* Chat (desktop only) */}
+          <button
+            onClick={() => setChatOpen(!chatOpen)}
+            aria-expanded={chatOpen}
+            className={cn(
+              'hidden md:block rounded-xl px-3.5 py-2.5 font-mono text-xs font-bold shadow-2xl backdrop-blur-md transition-colors',
+              chatOpen ? 'bg-white text-black' : 'bg-black/85 text-white/80 hover:text-white',
+            )}
+          >
+            Чат
+          </button>
+
+          {/* Telegram channel */}
+          <a
               href="https://t.me/spotard"
               target="_blank"
               rel="noopener noreferrer"
