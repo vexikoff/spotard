@@ -6,6 +6,7 @@ import { db } from '@/lib/db'
 import { comments, messages, reports, spots, type Comment, type Message, type Report, type Spot } from '@/lib/db/schema'
 import { getUserRole } from '@/lib/spot-config'
 import { and, desc, eq } from 'drizzle-orm'
+import { triggerPusher } from '@/lib/pusher'
 
 export type SpotInput = {
   name: string
@@ -103,6 +104,7 @@ export async function createSpot(input: SpotInput): Promise<Spot> {
     .insert(spots)
     .values({ ...data, userId: sessionUser.id, authorName: sessionUser.name })
     .returning()
+  await triggerPusher('spots', 'created', created)
   return created
 }
 
@@ -120,6 +122,7 @@ export async function updateSpot(id: number, input: SpotInput): Promise<Spot> {
     .set({ ...data, userId: existing.userId ?? sessionUser.id, authorName: existing.userId ? existing.authorName : sessionUser.name })
     .where(eq(spots.id, id))
     .returning()
+  await triggerPusher('spots', 'updated', updated)
   return updated
 }
 
@@ -132,6 +135,7 @@ export async function deleteSpot(id: number): Promise<void> {
   }
   await db.delete(spots).where(eq(spots.id, id))
   await db.delete(reports).where(eq(reports.spotId, id))
+  await triggerPusher('spots', 'deleted', { id })
 }
 
 // --- Reports (жалобы) -------------------------------------------------------
