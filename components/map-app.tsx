@@ -11,6 +11,7 @@ import {
   createSpot,
   deleteSpot,
   dismissReport,
+  getIpLocation,
   getMessages,
   getOpenReports,
   getSpots,
@@ -147,37 +148,18 @@ export default function MapApp({ initialSpots }: { initialSpots: Spot[] }) {
     )
   }
 
-  function fallbackToIpLocation() {
-    fetch('https://ipapi.co/json/')
-      .then((res) => {
-        if (!res.ok) throw new Error('ipapi failed')
-        return res.json()
-      })
-      .then((data) => {
-        if (data && typeof data.latitude === 'number' && typeof data.longitude === 'number') {
-          setFlyTarget({ lat: data.latitude, lng: data.longitude })
-        } else {
-          throw new Error('Invalid data from ipapi')
-        }
-      })
-      .catch((err) => {
-        console.warn('ipapi fallback failed, trying freeipapi...', err)
-        fetch('https://freeipapi.com/api/json')
-          .then((res) => {
-            if (!res.ok) throw new Error('freeipapi failed')
-            return res.json()
-          })
-          .then((data) => {
-            if (data && typeof data.latitude === 'number' && typeof data.longitude === 'number') {
-              setFlyTarget({ lat: data.latitude, lng: data.longitude })
-            } else {
-              throw new Error('Invalid data from freeipapi')
-            }
-          })
-          .catch(() => {
-            flashNotice('Не удалось определить местоположение')
-          })
-      })
+  async function fallbackToIpLocation() {
+    try {
+      const loc = await getIpLocation()
+      if (loc && typeof loc.lat === 'number' && typeof loc.lng === 'number') {
+        setFlyTarget({ lat: loc.lat, lng: loc.lng })
+      } else {
+        flashNotice('Не удалось определить местоположение')
+      }
+    } catch (err) {
+      console.error('Fallback location search error:', err)
+      flashNotice('Не удалось определить местоположение')
+    }
   }
 
   function flashNotice(msg: string) {
