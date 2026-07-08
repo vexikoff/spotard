@@ -1,12 +1,44 @@
-export const ADMIN_EMAILS = ['admin-x5m@spotard.app', 'vexikoff@gmail.com']
-export const MODERATOR_EMAIL = 'moder-x5m@spotard.app'
+// ==== СПИСОК АДМИНИСТРАТОРОВ ====
+export const ADMIN_EMAILS = [
+  'admin-x5m@spotard.app',
+  'vexikoff@gmail.com',
+  'claus_maslov@gmail.com'
+]
+
+export const ADMIN_NAMES = [
+  'Claus_Maslov',
+  'Claus Maslov',
+  'claus_maslov',
+  'admin'
+]
+
+// ==== СПИСОК МОДЕРАТОРОВ ====
+export const MODERATOR_EMAILS = [
+  'moder-x5m@spotard.app'
+]
+
+export const MODERATOR_NAMES = [
+  'moderator',
+  'moder'
+]
 
 export type UserRole = 'admin' | 'moderator' | 'user'
 
-export function getUserRole(email: string | null | undefined): UserRole {
+export function getUserRole(
+  email: string | null | undefined,
+  name?: string | null | undefined
+): UserRole {
   const e = (email ?? '').toLowerCase()
-  if (ADMIN_EMAILS.includes(e)) return 'admin'
-  if (e === MODERATOR_EMAIL) return 'moderator'
+  const n = (name ?? '').toLowerCase()
+
+  if (ADMIN_EMAILS.includes(e) || ADMIN_NAMES.includes(name ?? '') || ADMIN_NAMES.includes(n)) {
+    return 'admin'
+  }
+
+  if (MODERATOR_EMAILS.includes(e) || MODERATOR_NAMES.includes(name ?? '') || MODERATOR_NAMES.includes(n)) {
+    return 'moderator'
+  }
+
   return 'user'
 }
 
