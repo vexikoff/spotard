@@ -391,20 +391,22 @@ export default function MapApp({ initialSpots }: { initialSpots: Spot[] }) {
             />
           </div>
 
-          {/* Utility / Action buttons: vertical stack floating on the right side on mobile, horizontal row next to search on desktop */}
-          <div className="pointer-events-auto flex flex-col md:flex-row items-end md:items-center gap-2 absolute md:static right-3 top-[72px] md:top-auto md:right-auto z-[1000]">
-            {/* Chat */}
+          {/* Chat: full-width on mobile, inline on desktop */}
+          <div className="pointer-events-auto w-full md:w-auto">
             <button
               onClick={() => setChatOpen(!chatOpen)}
               aria-expanded={chatOpen}
               className={cn(
-                'rounded-xl px-3.5 py-2.5 font-mono text-xs font-bold shadow-2xl backdrop-blur-md transition-colors',
+                'w-full md:w-auto rounded-xl px-3.5 py-2.5 font-mono text-xs font-bold shadow-2xl backdrop-blur-md transition-colors',
                 chatOpen ? 'bg-white text-black' : 'bg-black/85 text-white/80 hover:text-white',
               )}
             >
               Чат
             </button>
+          </div>
 
+          {/* Utility / Action buttons: vertical stack floating on the right side on mobile, horizontal row next to search on desktop */}
+          <div className="pointer-events-auto flex flex-col md:flex-row items-end md:items-center gap-2 absolute md:static right-3 top-[154px] md:top-auto md:right-auto z-[1000]">
             {/* Telegram channel */}
             <a
               href="https://t.me/spotard"
