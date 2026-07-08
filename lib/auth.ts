@@ -28,6 +28,8 @@ export const auth = betterAuth({
     'https://*.v0.dev',
     'https://*.v0.app',
     'https://*.vercel.app',
+    'https://spotard.claus-maslov.space',
+    'http://spotard.claus-maslov.space',
   ],
   session: {
     expiresIn: 60 * 60 * 24 * 7, // 7 days
