@@ -420,7 +420,7 @@ export default function MapApp({ initialSpots }: { initialSpots: Spot[] }) {
           {/* Account */}
           {sessionLoading ? null : session?.user ? (
             <div className="flex items-center gap-2 rounded-xl bg-black/85 py-1.5 pr-1.5 pl-3.5 shadow-2xl backdrop-blur-md">
-              <span className="max-w-28 truncate text-xs font-bold text-white">
+              <span className="max-w-44 md:max-w-none truncate text-xs font-bold text-white">
                 {session.user.name}
                 {role !== 'user' && (
                   <span className="ml-1.5 font-mono text-[9px] tracking-wider text-primary uppercase">
