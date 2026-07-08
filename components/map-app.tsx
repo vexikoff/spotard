@@ -309,6 +309,32 @@ export default function MapApp({ initialSpots }: { initialSpots: Spot[] }) {
     }
   }
 
+  const accountBadge = sessionLoading ? null : session?.user ? (
+    <div className="flex items-center gap-2 rounded-xl bg-black/85 py-1.5 pr-1.5 pl-3.5 shadow-2xl backdrop-blur-md">
+      <span className="max-w-44 md:max-w-none truncate text-xs font-bold text-white">
+        {session.user.name}
+        {role !== 'user' && (
+          <span className="ml-1.5 font-mono text-[9px] tracking-wider text-primary uppercase">
+            {role === 'admin' ? 'админ' : 'модер'}
+          </span>
+        )}
+      </span>
+      <button
+        onClick={handleSignOut}
+        className="rounded-lg bg-white/10 px-2.5 py-1.5 font-mono text-xs text-white/70 transition-colors hover:bg-white/20 hover:text-white"
+      >
+        Выйти
+      </button>
+    </div>
+  ) : (
+    <Link
+      href="/sign-in"
+      className="rounded-xl bg-white px-4 py-2.5 text-xs font-bold text-black shadow-2xl transition-opacity hover:opacity-85"
+    >
+      Войти
+    </Link>
+  )
+
   return (
     <main className="relative h-dvh w-full overflow-hidden">
       <SpotMap
@@ -323,126 +349,118 @@ export default function MapApp({ initialSpots }: { initialSpots: Spot[] }) {
       />
 
       {/* Header */}
-      <header className="pointer-events-none absolute inset-x-0 top-0 z-[1000] flex flex-wrap items-start justify-between gap-2 p-3 md:p-4">
-        <div className="pointer-events-auto flex shrink-0 items-center gap-2.5 rounded-xl bg-black/85 px-3 py-2 shadow-2xl backdrop-blur-md md:gap-3 md:px-4 md:py-2.5">
-          <Image
-            src="/images/spotard.png"
-            alt="Логотип spotard"
-            width={32}
-            height={32}
-            className="size-7 rounded-lg grayscale md:size-8"
-            priority
-          />
-          <div className="flex flex-col">
-            <span className="font-display text-sm leading-tight font-semibold tracking-tight text-white lowercase md:text-base">
-              spotard
-            </span>
-            <span className="font-mono text-[10px] leading-tight text-white/50 uppercase">
-              {spots.length} {spotWord(spots.length)}
-            </span>
+      <header className="pointer-events-none absolute inset-x-0 top-0 z-[1000] flex flex-col md:flex-row md:items-start justify-between gap-3 p-3 md:p-4">
+        {/* Top row: Logo on left, Account on right (mobile-only) */}
+        <div className="flex w-full md:w-auto items-center justify-between md:justify-start gap-3">
+          <div className="pointer-events-auto flex shrink-0 items-center gap-2.5 rounded-xl bg-black/85 px-3 py-2 shadow-2xl backdrop-blur-md md:gap-3 md:px-4 md:py-2.5">
+            <Image
+              src="/images/spotard.png"
+              alt="Логотип spotard"
+              width={32}
+              height={32}
+              className="size-7 rounded-lg grayscale md:size-8"
+              priority
+            />
+            <div className="flex flex-col">
+              <span className="font-display text-sm leading-tight font-semibold tracking-tight text-white lowercase md:text-base">
+                spotard
+              </span>
+              <span className="font-mono text-[10px] leading-tight text-white/50 uppercase">
+                {spots.length} {spotWord(spots.length)}
+              </span>
+            </div>
+          </div>
+
+          {/* Account badge on top-right (mobile only) */}
+          <div className="pointer-events-auto md:hidden">
+            {accountBadge}
           </div>
         </div>
 
-        <div className="pointer-events-auto flex flex-wrap items-center justify-end gap-2">
-          {/* Search */}
-          <input
-            type="search"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Поиск: название, теги..."
-            aria-label="Поиск спотов"
-            className="w-40 rounded-xl bg-black/85 px-3.5 py-2.5 font-mono text-xs text-white placeholder:text-white/40 shadow-2xl backdrop-blur-md focus:outline-none focus:ring-2 focus:ring-primary/60 md:w-52"
-          />
+        {/* Bottom row / Inline block: Search and action buttons */}
+        <div className="flex w-full md:w-auto flex-col md:flex-row items-stretch md:items-center gap-2">
+          {/* Search: full-width on mobile, 208px wide on desktop */}
+          <div className="pointer-events-auto w-full md:w-auto">
+            <input
+              type="search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Поиск: название, теги..."
+              aria-label="Поиск спотов"
+              className="w-full md:w-52 rounded-xl bg-black/85 px-3.5 py-2.5 font-mono text-xs text-white placeholder:text-white/40 shadow-2xl backdrop-blur-md focus:outline-none focus:ring-2 focus:ring-primary/60"
+            />
+          </div>
 
-          {/* Chat */}
-          <button
-            onClick={() => setChatOpen(!chatOpen)}
-            aria-expanded={chatOpen}
-            className={cn(
-              'rounded-xl px-3.5 py-2.5 font-mono text-xs font-bold shadow-2xl backdrop-blur-md transition-colors',
-              chatOpen ? 'bg-white text-black' : 'bg-black/85 text-white/80 hover:text-white',
-            )}
-          >
-            Чат
-          </button>
-
-          {/* Telegram channel */}
-          <a
-            href="https://t.me/spotard"
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label="Telegram"
-            className="rounded-xl bg-black/85 px-3.5 py-2.5 font-mono text-xs font-bold text-white/80 shadow-2xl backdrop-blur-md transition-colors hover:text-white"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className="inline">
-              <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.562 8.161c-.18.718-1.077 4.996-1.528 7.375-.192 1.01-.564 1.348-.923 1.38-.78.07-1.372-.516-2.128-1.012-1.184-.777-1.854-1.258-3.003-2.015-1.328-.875-.467-1.357.29-2.143.198-.206 3.636-3.334 3.702-3.616.008-.035.015-.166-.062-.234-.078-.068-.193-.045-.276-.026-.118.027-2.003 1.272-5.65 3.727-.534.366-1.019.546-1.454.537-.48-.01-1.403-.27-2.09-.494-.842-.274-1.512-.42-1.454-.886.03-.243.364-.492.999-.748 3.914-1.704 6.522-2.829 7.822-3.376 3.724-1.56 4.498-1.83 5.003-1.84.111-.002.359.025.519.155.135.109.172.256.186.368.014.114.02.385.01.554z"/>
-            </svg>
-          </a>
-
-          {/* Settings */}
-          <button
-            onClick={() => setSettingsOpen(!settingsOpen)}
-            aria-expanded={settingsOpen}
-            aria-label="Настройки"
-            className={cn(
-              'rounded-xl px-3.5 py-2.5 font-mono text-xs font-bold shadow-2xl backdrop-blur-md transition-colors',
-              settingsOpen ? 'bg-white text-black' : 'bg-black/85 text-white/80 hover:text-white',
-            )}
-          >
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true" className="inline">
-              <path
-                d="M8 10a2 2 0 100-4 2 2 0 000 4zM13 8c0-.35-.04-.7-.1-1.03l1.4-1.09-1.3-2.26-1.66.67a5 5 0 00-1.78-1.03L9.3 1.5H6.7l-.26 1.76a5 5 0 00-1.78 1.03l-1.66-.67-1.3 2.26 1.4 1.09A5.1 5.1 0 003 8c0 .35.04.7.1 1.03l-1.4 1.09 1.3 2.26 1.66-.67c.52.46 1.12.81 1.78 1.03l.26 1.76h2.6l.26-1.76a5 5 0 001.78-1.03l1.66.67 1.3-2.26-1.4-1.09c.06-.34.1-.68.1-1.03z"
-                stroke="currentColor"
-                strokeWidth="1.2"
-              />
-            </svg>
-          </button>
-
-          {/* Staff: reports */}
-          {isStaff && (
+          {/* Utility / Action buttons: vertical stack floating on the right side on mobile, horizontal row next to search on desktop */}
+          <div className="pointer-events-auto flex flex-col md:flex-row items-end md:items-center gap-2 absolute md:static right-3 top-[72px] md:top-auto md:right-auto z-[1000]">
+            {/* Chat */}
             <button
-              onClick={() => setReportsOpen(!reportsOpen)}
-              aria-expanded={reportsOpen}
+              onClick={() => setChatOpen(!chatOpen)}
+              aria-expanded={chatOpen}
               className={cn(
-                'flex items-center gap-2 rounded-xl px-3.5 py-2.5 font-mono text-xs font-bold shadow-2xl backdrop-blur-md transition-colors',
-                reportsOpen ? 'bg-white text-black' : 'bg-black/85 text-white/80 hover:text-white',
+                'rounded-xl px-3.5 py-2.5 font-mono text-xs font-bold shadow-2xl backdrop-blur-md transition-colors',
+                chatOpen ? 'bg-white text-black' : 'bg-black/85 text-white/80 hover:text-white',
               )}
             >
-              Жалобы
-              {openReports.length > 0 && (
-                <span className="flex size-5 items-center justify-center rounded-full bg-destructive text-[10px] text-white">
-                  {openReports.length}
-                </span>
-              )}
+              Чат
             </button>
-          )}
 
-          {/* Account */}
-          {sessionLoading ? null : session?.user ? (
-            <div className="flex items-center gap-2 rounded-xl bg-black/85 py-1.5 pr-1.5 pl-3.5 shadow-2xl backdrop-blur-md">
-              <span className="max-w-44 md:max-w-none truncate text-xs font-bold text-white">
-                {session.user.name}
-                {role !== 'user' && (
-                  <span className="ml-1.5 font-mono text-[9px] tracking-wider text-primary uppercase">
-                    {role === 'admin' ? 'админ' : 'модер'}
+            {/* Telegram channel */}
+            <a
+              href="https://t.me/spotard"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Telegram"
+              className="rounded-xl bg-black/85 px-3.5 py-2.5 font-mono text-xs font-bold text-white/80 shadow-2xl backdrop-blur-md transition-colors hover:text-white"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className="inline">
+                <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.562 8.161c-.18.718-1.077 4.996-1.528 7.375-.192 1.01-.564 1.348-.923 1.38-.78.07-1.372-.516-2.128-1.012-1.184-.777-1.854-1.258-3.003-2.015-1.328-.875-.467-1.357.29-2.143.198-.206 3.636-3.334 3.702-3.616.008-.035.015-.166-.062-.234-.078-.068-.193-.045-.276-.026-.118.027-2.003 1.272-5.65 3.727-.534.366-1.019.546-1.454.537-.48-.01-1.403-.27-2.09-.494-.842-.274-1.512-.42-1.454-.886.03-.243.364-.492.999-.748 3.914-1.704 6.522-2.829 7.822-3.376 3.724-1.56 4.498-1.83 5.003-1.84.111-.002.359.025.519.155.135.109.172.256.186.368.014.114.02.385.01.554z"/>
+              </svg>
+            </a>
+
+            {/* Settings */}
+            <button
+              onClick={() => setSettingsOpen(!settingsOpen)}
+              aria-expanded={settingsOpen}
+              aria-label="Настройки"
+              className={cn(
+                'rounded-xl px-3.5 py-2.5 font-mono text-xs font-bold shadow-2xl backdrop-blur-md transition-colors',
+                settingsOpen ? 'bg-white text-black' : 'bg-black/85 text-white/80 hover:text-white',
+              )}
+            >
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true" className="inline">
+                <path
+                  d="M8 10a2 2 0 100-4 2 2 0 000 4zM13 8c0-.35-.04-.7-.1-1.03l1.4-1.09-1.3-2.26-1.66.67a5 5 0 00-1.78-1.03L9.3 1.5H6.7l-.26 1.76a5 5 0 00-1.78 1.03l-1.66-.67-1.3 2.26 1.4 1.09A5.1 5.1 0 003 8c0 .35.04.7.1 1.03l-1.4 1.09 1.3 2.26 1.66-.67c.52.46 1.12.81 1.78 1.03l.26 1.76h2.6l.26-1.76a5 5 0 001.78-1.03l1.66.67 1.3-2.26-1.4-1.09c.06-.34.1-.68.1-1.03z"
+                  stroke="currentColor"
+                  strokeWidth="1.2"
+                />
+              </svg>
+            </button>
+
+            {/* Staff: reports */}
+            {isStaff && (
+              <button
+                onClick={() => setReportsOpen(!reportsOpen)}
+                aria-expanded={reportsOpen}
+                className={cn(
+                  'flex items-center gap-2 rounded-xl px-3.5 py-2.5 font-mono text-xs font-bold shadow-2xl backdrop-blur-md transition-colors',
+                  reportsOpen ? 'bg-white text-black' : 'bg-black/85 text-white/80 hover:text-white',
+                )}
+              >
+                Жалобы
+                {openReports.length > 0 && (
+                  <span className="flex size-5 items-center justify-center rounded-full bg-destructive text-[10px] text-white">
+                    {openReports.length}
                   </span>
                 )}
-              </span>
-              <button
-                onClick={handleSignOut}
-                className="rounded-lg bg-white/10 px-2.5 py-1.5 font-mono text-xs text-white/70 transition-colors hover:bg-white/20 hover:text-white"
-              >
-                Выйти
               </button>
-            </div>
-          ) : (
-            <Link
-              href="/sign-in"
-              className="rounded-xl bg-white px-4 py-2.5 text-xs font-bold text-black shadow-2xl transition-opacity hover:opacity-85"
-            >
-              Войти
-            </Link>
-          )}
+            )}
+          </div>
+
+          {/* Account badge on inline list (desktop only) */}
+          <div className="pointer-events-auto hidden md:block">
+            {accountBadge}
+          </div>
         </div>
       </header>
 
