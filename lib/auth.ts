@@ -5,7 +5,7 @@ import nodemailer from 'nodemailer'
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
-    user: process.env.SMTP_USER || 'claus_maslov@gmail.com',
+    user: process.env.SMTP_USER || 'campminecraftmaps@gmail.com',
     pass: 'qhyl fuqr cocu itlg',
   },
 })
@@ -28,7 +28,7 @@ export const auth = betterAuth({
     sendOnSignUp: true,
     send: async ({ user, url, token }) => {
       const mailOptions = {
-        from: `"spotard" <${process.env.SMTP_USER || 'claus_maslov@gmail.com'}>`,
+        from: `"spotard" <${process.env.SMTP_USER || 'campminecraftmaps@gmail.com'}>`,
         to: user.email,
         subject: 'Подтверждение почты на spotard',
         html: `
