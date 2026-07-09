@@ -36,4 +36,4 @@
 ## Авторы
 
 - [vexikoff](https://github.com/vexikoff)
-- [ClausMaslov](https://github.com/ClausMaslov)
+- [[ClausMaslov](https://avatars.githubusercontent.com/u/137815444)](https://github.com/ClausMaslov)
