@@ -23,7 +23,7 @@
 
 Открыть карту: https://t.me/spotard_bot/open
 
-Сайт: spotard.claus-maslov.space
+Сайт: https://spotard.claus-maslov.space
 
 ## Технологии
 
