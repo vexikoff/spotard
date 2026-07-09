@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import useSWR from 'swr'
 import type { Spot } from '@/lib/db/schema'
-import { addComment, deleteComment, getComments, type SpotInput } from '@/app/actions/spots'
+import { addComment, deleteComment, getComments, toggleLikeSpot, type SpotInput } from '@/app/actions/spots'
 import {
   SECURITY_LEVELS,
   SPOT_CATEGORIES,
@@ -17,6 +17,34 @@ import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 
 type DraftPoint = { lat: number; lng: number }
+
+function compressImage(file: File, maxW = 800, maxH = 800): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      const img = new Image()
+      img.onload = () => {
+        const canvas = document.createElement('canvas')
+        let w = img.width
+        let h = img.height
+        if (w > maxW || h > maxH) {
+          const ratio = Math.min(maxW / w, maxH / h)
+          w = Math.round(w * ratio)
+          h = Math.round(h * ratio)
+        }
+        canvas.width = w
+        canvas.height = h
+        const ctx = canvas.getContext('2d')
+        ctx?.drawImage(img, 0, 0, w, h)
+        resolve(canvas.toDataURL('image/jpeg', 0.7))
+      }
+      img.onerror = () => reject(new Error('Не удалось прочитать картинку'))
+      img.src = e.target?.result as string
+    }
+    reader.onerror = () => reject(new Error('Ошибка чтения файла'))
+    reader.readAsDataURL(file)
+  })
+}
 
 const inputClass =
   'w-full rounded-lg bg-secondary px-3.5 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/60'
@@ -50,6 +78,30 @@ function SpotForm({
   const [description, setDescription] = useState(initial?.description ?? '')
   const [tags, setTags] = useState(initial?.tags ?? '')
   const [error, setError] = useState('')
+  const [images, setImages] = useState<string[]>(() => {
+    try {
+      const parsed = JSON.parse(initial?.images || '[]')
+      return Array.isArray(parsed) ? parsed : []
+    } catch (e) {
+      return []
+    }
+  })
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || [])
+    const newImages = [...images]
+    for (const file of files) {
+      if (newImages.length >= 3) break
+      try {
+        const base64 = await compressImage(file)
+        newImages.push(base64)
+      } catch (err) {
+        console.error(err)
+      }
+    }
+    setImages(newImages)
+    e.target.value = ''
+  }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -70,6 +122,7 @@ function SpotForm({
       covered,
       description,
       tags,
+      images: JSON.stringify(images),
     })
   }
 
@@ -220,6 +273,37 @@ function SpotForm({
         />
       </label>
 
+      <div className="flex flex-col gap-2">
+        <FieldLabel>Фотографии (до 3)</FieldLabel>
+        <div className="grid grid-cols-3 gap-2">
+          {images.map((img, idx) => (
+            <div key={idx} className="relative aspect-square rounded-xl overflow-hidden bg-secondary">
+              <img src={img} className="h-full w-full object-cover" alt="" />
+              <button
+                type="button"
+                onClick={() => setImages(images.filter((_, i) => i !== idx))}
+                className="absolute top-1.5 right-1.5 rounded-lg bg-black/85 px-2 py-1 font-mono text-[9px] font-bold text-white/80 hover:text-white transition-colors"
+              >
+                Удалить
+              </button>
+            </div>
+          ))}
+          {images.length < 3 && (
+            <label className="flex aspect-square cursor-pointer flex-col items-center justify-center rounded-xl bg-secondary text-muted-foreground hover:text-foreground transition-colors">
+              <span className="text-xl leading-none">+</span>
+              <span className="font-mono text-[9px] uppercase tracking-wider mt-1">Фото</span>
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                className="hidden"
+                onChange={handleFileChange}
+              />
+            </label>
+          )}
+        </div>
+      </div>
+
       <p className="font-mono text-xs text-muted-foreground">
         {point.lat.toFixed(5)}, {point.lng.toFixed(5)}
       </p>
@@ -305,20 +389,24 @@ function SpotDetails({
   isOwner,
   canReport,
   isStaff,
+  currentUserId,
   onEdit,
   onDelete,
   onReport,
   onClose,
+  onLike,
 }: {
   spot: Spot
   deleting: boolean
   isOwner: boolean
   canReport: boolean
   isStaff: boolean
+  currentUserId: string | null
   onEdit: () => void
   onDelete: () => void
   onReport: (reason: string) => Promise<void>
   onClose: () => void
+  onLike?: () => Promise<void>
 }) {
   const [confirming, setConfirming] = useState(false)
   const [reporting, setReporting] = useState(false)
@@ -337,6 +425,37 @@ function SpotDetails({
       setReportSending(false)
     }
   }
+
+  const [likeSending, setLikeSending] = useState(false)
+
+  let likesList: string[] = []
+  try {
+    likesList = JSON.parse(spot.likes || '[]')
+    if (!Array.isArray(likesList)) likesList = []
+  } catch (e) {
+    likesList = []
+  }
+  const likesCount = likesList.length
+  const hasLiked = Boolean(currentUserId && likesList.includes(currentUserId))
+
+  async function handleLikeToggle() {
+    if (!currentUserId || !onLike || likeSending) return
+    setLikeSending(true)
+    try {
+      await onLike()
+    } finally {
+      setLikeSending(false)
+    }
+  }
+
+  let parsedImages: string[] = []
+  try {
+    parsedImages = JSON.parse(spot.images || '[]')
+    if (!Array.isArray(parsedImages)) parsedImages = []
+  } catch (e) {
+    parsedImages = []
+  }
+
   const type = getSpotType(spot.spotType)
   const sec = getSecurity(spot.security)
   const tags = spot.tags
@@ -346,16 +465,53 @@ function SpotDetails({
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="flex flex-wrap items-center gap-2">
-        <span
-          className="rounded-full px-3 py-1 font-mono text-xs font-bold uppercase tracking-wider"
-          style={{ backgroundColor: type.color, color: '#16171d' }}
+      {/* Top Image Gallery */}
+      {parsedImages.length > 0 && (
+        <div className="flex gap-2 overflow-x-auto scrollbar-none snap-x snap-mandatory pb-1">
+          {parsedImages.map((img, idx) => (
+            <div key={idx} className="w-full shrink-0 snap-center rounded-xl overflow-hidden bg-secondary">
+              <img src={img} className="aspect-video w-full object-cover" alt="" />
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <span
+            className="rounded-full px-3 py-1 font-mono text-xs font-bold uppercase tracking-wider"
+            style={{ backgroundColor: type.color, color: '#16171d' }}
+          >
+            {type.label}
+          </span>
+          <span className="font-mono text-xs text-muted-foreground">
+            {spot.lat.toFixed(5)}, {spot.lng.toFixed(5)}
+          </span>
+        </div>
+
+        {/* Like Button */}
+        <button
+          onClick={handleLikeToggle}
+          disabled={!currentUserId || likeSending}
+          className={cn(
+            "flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-mono text-xs font-bold transition-colors bg-secondary",
+            hasLiked ? "text-rose-500 bg-rose-500/10" : "text-muted-foreground hover:text-foreground",
+            !currentUserId && "opacity-60 cursor-not-allowed"
+          )}
+          title={currentUserId ? "Поставить лайк" : "Войдите, чтобы ставить лайки"}
         >
-          {type.label}
-        </span>
-        <span className="font-mono text-xs text-muted-foreground">
-          {spot.lat.toFixed(5)}, {spot.lng.toFixed(5)}
-        </span>
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill={hasLiked ? "currentColor" : "none"}
+            stroke="currentColor"
+            strokeWidth="2"
+          >
+            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+          </svg>
+          <span>{likesCount}</span>
+        </button>
       </div>
 
       <div className="grid grid-cols-2 gap-x-4 gap-y-3">
@@ -505,6 +661,7 @@ export default function SpotPanel({
   onDelete: () => void
   onReport: (reason: string) => Promise<void>
   onClose: () => void
+  onLike?: (spotId: number) => Promise<void>
 }) {
   // Reset internal form state when target changes by keying the form
   const formKey =
@@ -549,10 +706,12 @@ export default function SpotPanel({
               isOwner={isOwner}
               canReport={Boolean(currentUserId)}
               isStaff={isStaff}
+              currentUserId={currentUserId}
               onEdit={onEdit}
               onDelete={onDelete}
               onReport={onReport}
               onClose={onClose}
+              onLike={() => onLike?.(spot.id)}
             />
             <Comments spotId={spot.id} currentUserId={currentUserId} isStaff={isStaff} />
           </div>

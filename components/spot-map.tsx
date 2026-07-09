@@ -110,13 +110,13 @@ export default function SpotMap({
 }) {
   const draftIcon = useMemo(() => makeSpotIcon(draftType, true), [draftType])
   const style = getMapStyle(mapStyle)
-  const [zoom, setZoom] = useState(12)
+  const [zoom, setZoom] = useState(3)
   const clusters = useMemo(() => clusterSpots(spots, zoom), [spots, zoom])
 
   return (
     <MapContainer
-      center={[55.751, 37.618]}
-      zoom={12}
+      center={[20, 0]}
+      zoom={3}
       minZoom={3}
       maxBounds={[
         [-85, -180],

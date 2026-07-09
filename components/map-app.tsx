@@ -20,6 +20,7 @@ import {
   reportSpot,
   sendMessage,
   updateSpot,
+  toggleLikeSpot,
   type SpotInput,
 } from '@/app/actions/spots'
 import type { SpotCluster } from '@/components/spot-map'
@@ -293,6 +294,15 @@ export default function MapApp({ initialSpots }: { initialSpots: Spot[] }) {
     } catch (err) {
       flashNotice(err instanceof Error ? err.message : 'Не удалось отправить жалобу')
       throw err
+    }
+  }
+
+  async function handleLike(spotId: number) {
+    try {
+      await toggleLikeSpot(spotId)
+      await mutate()
+    } catch (err) {
+      flashNotice(err instanceof Error ? err.message : 'Ошибка')
     }
   }
 
@@ -878,7 +888,7 @@ export default function MapApp({ initialSpots }: { initialSpots: Spot[] }) {
         <SpotPanel
           mode={mode}
           draft={draft}
-          spot={selected}
+          spot={selected ? spots.find((s) => s.id === selected.id) || selected : null}
           saving={saving}
           deleting={deleting}
           currentUserId={currentUserId}
@@ -890,6 +900,7 @@ export default function MapApp({ initialSpots }: { initialSpots: Spot[] }) {
           onDelete={handleDelete}
           onReport={handleReport}
           onClose={closePanel}
+          onLike={handleLike}
         />
       )}
     </main>
