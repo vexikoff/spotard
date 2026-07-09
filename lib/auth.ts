@@ -54,7 +54,14 @@ export const auth = betterAuth({
           </div>
         `,
       }
-      await transporter.sendMail(mailOptions)
+      console.log(`[SPOTARD SMTP] Attempting to send OTP email to ${user.email}`)
+      try {
+        const info = await transporter.sendMail(mailOptions)
+        console.log(`[SPOTARD SMTP] Email sent successfully to ${user.email}. MessageId: ${info.messageId}`)
+      } catch (err) {
+        console.error(`[SPOTARD SMTP] Error sending email to ${user.email}:`, err)
+        throw err
+      }
     },
   },
   trustedOrigins: [
