@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { authClient } from '@/lib/auth-client'
 import { Button } from '@/components/ui/button'
-import { checkUsernameExists, signUpWithVerification } from '@/app/actions/spots'
+import { signUpWithVerification, verifyOtpCode } from '@/app/actions/spots'
 
 const inputClass =
   'w-full rounded-lg bg-secondary px-3.5 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/60'
@@ -29,15 +29,11 @@ export function AuthForm({ mode }: { mode: 'sign-in' | 'sign-up' }) {
     setError(null)
     setLoading(true)
 
-    const { error } = await authClient.verifyEmail({
-      query: {
-        token: enteredCode.trim(),
-      },
-    })
+    const res = await verifyOtpCode({ email, code: enteredCode })
     setLoading(false)
 
-    if (error) {
-      setError(error.message ?? 'Неверный или истекший код')
+    if (!res.success) {
+      setError(res.error ?? 'Неверный или истекший код')
       return
     }
 

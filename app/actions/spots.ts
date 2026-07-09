@@ -459,6 +459,46 @@ export async function toggleBanUser(userId: string) {
   await db.update(user).set({ banned: nextBanned }).where(eq(user.id, userId))
 }
 
+export async function verifyOtpCode(input: {
+  email: string
+  code: string
+}): Promise<{ success: boolean; error?: string }> {
+  const { email, code } = input
+  const emailLower = email.trim().toLowerCase()
+  const codeClean = code.trim()
+
+  try {
+    const [ver] = await db
+      .select()
+      .from(verification)
+      .where(eq(verification.identifier, emailLower))
+      .orderBy(desc(verification.createdAt))
+      .limit(1)
+
+    if (!ver) {
+      return { success: false, error: 'Код не найден. Зарегистрируйся заново.' }
+    }
+
+    if (ver.value !== codeClean) {
+      return { success: false, error: 'Неверный код подтверждения' }
+    }
+
+    if (new Date() > new Date(ver.expiresAt)) {
+      return { success: false, error: 'Код истёк. Зарегистрируйся заново.' }
+    }
+
+    // Mark user as email-verified
+    await db.update(user).set({ emailVerified: true }).where(eq(sql`lower(${user.email})`, emailLower))
+
+    // Delete used code
+    await db.delete(verification).where(eq(verification.id, ver.id))
+
+    return { success: true }
+  } catch (err: any) {
+    return { success: false, error: 'Ошибка проверки кода: ' + (err.message || String(err)) }
+  }
+}
+
 export async function signUpWithVerification(input: {
   email: string
   password: string
@@ -499,33 +539,28 @@ export async function signUpWithVerification(input: {
     return { success: false, error: 'Ошибка регистрации: ' + msg }
   }
 
-  // 4. Find the generated verification code
-  let verValue: string | null = null
-  let verId: string | null = null
+  // 4. Manually generate and insert a 6-digit OTP into verification table
+  const otpCode = Math.floor(100000 + Math.random() * 900000).toString()
+  const emailLower = email.trim().toLowerCase()
+  const expiresAt = new Date(Date.now() + 60 * 60 * 1000) // 1 hour from now
+  const verificationId = `${emailLower}-${Date.now()}`
+
   try {
-    const [ver] = await db
-      .select()
-      .from(verification)
-      .where(eq(verification.identifier, email.trim().toLowerCase()))
-      .orderBy(desc(verification.createdAt))
-      .limit(1)
-
-    if (ver) {
-      verValue = ver.value
-      verId = ver.id
-    }
+    // Delete any existing verification codes for this email first
+    await db.delete(verification).where(eq(verification.identifier, emailLower))
+    // Insert new code
+    await db.insert(verification).values({
+      id: verificationId,
+      identifier: emailLower,
+      value: otpCode,
+      expiresAt,
+    })
   } catch (err: any) {
-    // cleanup user
     if (userId) { try { await db.delete(user).where(eq(user.id, userId)) } catch (_) {} }
-    return { success: false, error: 'Ошибка получения кода: ' + (err.message || String(err)) }
+    return { success: false, error: 'Ошибка создания кода: ' + (err.message || String(err)) }
   }
 
-  if (!verValue) {
-    if (userId) { try { await db.delete(user).where(eq(user.id, userId)) } catch (_) {} }
-    return { success: false, error: 'Код подтверждения не был создан. Попробуй снова.' }
-  }
-
-  // 5. Send email synchronously — only show success if this succeeds
+  // 5. Send email — only return success if email actually sent
   try {
     await transporter.sendMail({
       from: '"spotard" <campminecraftmaps@gmail.com>',
@@ -539,9 +574,9 @@ export async function signUpWithVerification(input: {
           </div>
           <div style="background-color: #22232a; padding: 24px; border-radius: 12px; margin-bottom: 24px; text-align: center;">
             <p style="margin-top: 0; font-size: 16px; line-height: 1.5; text-align: left;">Привет, <strong>${name}</strong>!</p>
-            <p style="font-size: 14px; line-height: 1.5; color: #e0e0e0; text-align: left;">Введи этот код на сайте, чтобы подтвердить свой email и активировать аккаунт:</p>
-            <div style="background-color: #16171d; color: #c8f542; font-size: 32px; font-weight: bold; font-family: monospace; letter-spacing: 6px; padding: 16px; border-radius: 8px; display: inline-block; margin: 16px 0;">
-              ${verValue}
+            <p style="font-size: 14px; line-height: 1.5; color: #e0e0e0; text-align: left;">Введи этот код на сайте, чтобы подтвердить свой email:</p>
+            <div style="background-color: #16171d; color: #c8f542; font-size: 36px; font-weight: bold; font-family: monospace; letter-spacing: 8px; padding: 20px; border-radius: 8px; display: inline-block; margin: 16px 0;">
+              ${otpCode}
             </div>
             <p style="font-size: 12px; color: #a0a0a0; margin-bottom: 0; text-align: left;">Код действителен в течение 1 часа.</p>
           </div>
@@ -550,9 +585,9 @@ export async function signUpWithVerification(input: {
       `,
     })
   } catch (smtpErr: any) {
-    // SMTP failed: clean up user and verification so they can retry
+    // Rollback: delete user and verification code so they can retry
     if (userId) { try { await db.delete(user).where(eq(user.id, userId)) } catch (_) {} }
-    if (verId) { try { await db.delete(verification).where(eq(verification.id, verId)) } catch (_) {} }
+    try { await db.delete(verification).where(eq(verification.id, verificationId)) } catch (_) {}
     return { success: false, error: 'Не удалось отправить письмо: ' + (smtpErr.message || String(smtpErr)) }
   }
 
