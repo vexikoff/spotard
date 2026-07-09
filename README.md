@@ -6,6 +6,8 @@
 
 ![Spotard](screenshot.png)
 
+![Spotard](screenshot2.png)
+
 ## Функционал
 
 - Карта спотов — смотри где кататься в твоём городе
