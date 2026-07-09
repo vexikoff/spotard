@@ -68,11 +68,11 @@ export function AuthForm({ mode }: { mode: 'sign-in' | 'sign-up' }) {
         if (res.success) {
           setSuccessMessage('Аккаунт создан! Код подтверждения отправлен на твой email. Подтверди почту перед входом.')
         } else {
-          setError(res.message || 'Что-то пошло не так')
+          setError(res.error || 'Что-то пошло не так')
         }
-      } catch (err: any) {
+      } catch (_) {
         setLoading(false)
-        setError(err.message || 'Что-то пошло не так')
+        setError('Что-то пошло не так. Попробуй ещё раз.')
       }
     } else {
       const { error } = await authClient.signIn.email({ email, password })

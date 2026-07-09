@@ -463,46 +463,71 @@ export async function signUpWithVerification(input: {
   email: string
   password: string
   name: string
-}): Promise<{ success: boolean; message: string }> {
+}): Promise<{ success: boolean; error?: string }> {
   const { email, password, name } = input
-  
-  // 1. Check if name is unique
-  const nameExists = await checkUsernameExists(name)
-  if (nameExists) {
-    throw new Error('Этот ник уже занят, выбери другой')
+
+  // 1. Migrate banned column if needed
+  try {
+    await db.execute(sql`ALTER TABLE "user" ADD COLUMN IF NOT EXISTS "banned" BOOLEAN NOT NULL DEFAULT FALSE;`)
+  } catch (_) {}
+
+  // 2. Check if name is unique
+  try {
+    const clean = name.trim().toLowerCase()
+    const [existing] = await db.select().from(user).where(eq(sql`lower(${user.name})`, clean)).limit(1)
+    if (existing) {
+      return { success: false, error: 'Этот ник уже занят, выбери другой' }
+    }
+  } catch (err: any) {
+    return { success: false, error: 'Ошибка при проверке ника: ' + (err.message || String(err)) }
   }
 
-  let userRecord: any = null
+  // 3. Register user with Better Auth
+  let userId: string | null = null
   try {
-    // 2. Call Better Auth signup on the server
     const reqHeaders = await headers()
-    userRecord = await auth.api.signUpEmail({
+    const result = await auth.api.signUpEmail({
       body: { email, password, name },
       headers: reqHeaders,
     })
+    userId = (result as any)?.user?.id ?? null
   } catch (err: any) {
-    throw new Error(err.message || 'Ошибка регистрации в системе')
-  }
-
-  // 3. Find the created verification code
-  const [ver] = await db
-    .select()
-    .from(verification)
-    .where(eq(verification.identifier, email.trim().toLowerCase()))
-    .orderBy(desc(verification.createdAt))
-    .limit(1)
-
-  if (!ver) {
-    // Clean up user if verification record wasn't created
-    if (userRecord?.user?.id) {
-      await db.delete(user).where(eq(user.id, userRecord.user.id))
+    const msg: string = err.message || String(err)
+    if (msg.toLowerCase().includes('already') || msg.toLowerCase().includes('exist')) {
+      return { success: false, error: 'Аккаунт с таким email уже существует' }
     }
-    throw new Error('Не удалось создать код подтверждения')
+    return { success: false, error: 'Ошибка регистрации: ' + msg }
   }
 
-  // 4. Send email synchronously
+  // 4. Find the generated verification code
+  let verValue: string | null = null
+  let verId: string | null = null
   try {
-    const mailOptions = {
+    const [ver] = await db
+      .select()
+      .from(verification)
+      .where(eq(verification.identifier, email.trim().toLowerCase()))
+      .orderBy(desc(verification.createdAt))
+      .limit(1)
+
+    if (ver) {
+      verValue = ver.value
+      verId = ver.id
+    }
+  } catch (err: any) {
+    // cleanup user
+    if (userId) { try { await db.delete(user).where(eq(user.id, userId)) } catch (_) {} }
+    return { success: false, error: 'Ошибка получения кода: ' + (err.message || String(err)) }
+  }
+
+  if (!verValue) {
+    if (userId) { try { await db.delete(user).where(eq(user.id, userId)) } catch (_) {} }
+    return { success: false, error: 'Код подтверждения не был создан. Попробуй снова.' }
+  }
+
+  // 5. Send email synchronously — only show success if this succeeds
+  try {
+    await transporter.sendMail({
       from: '"spotard" <campminecraftmaps@gmail.com>',
       to: email,
       subject: 'Код подтверждения на spotard',
@@ -516,24 +541,21 @@ export async function signUpWithVerification(input: {
             <p style="margin-top: 0; font-size: 16px; line-height: 1.5; text-align: left;">Привет, <strong>${name}</strong>!</p>
             <p style="font-size: 14px; line-height: 1.5; color: #e0e0e0; text-align: left;">Введи этот код на сайте, чтобы подтвердить свой email и активировать аккаунт:</p>
             <div style="background-color: #16171d; color: #c8f542; font-size: 32px; font-weight: bold; font-family: monospace; letter-spacing: 6px; padding: 16px; border-radius: 8px; display: inline-block; margin: 16px 0;">
-              ${ver.value}
+              ${verValue}
             </div>
             <p style="font-size: 12px; color: #a0a0a0; margin-bottom: 0; text-align: left;">Код действителен в течение 1 часа.</p>
           </div>
           <p style="text-align: center; font-size: 11px; color: #606060; margin: 0;">Это письмо отправлено автоматически. Пожалуйста, не отвечайте на него.</p>
         </div>
       `,
-    }
-    await transporter.sendMail(mailOptions)
+    })
   } catch (smtpErr: any) {
-    // CLEAN UP: Delete user and verification code if SMTP failed so user can register again!
-    if (userRecord?.user?.id) {
-      await db.delete(user).where(eq(user.id, userRecord.user.id))
-    }
-    await db.delete(verification).where(eq(verification.id, ver.id))
-    throw new Error(`Ошибка отправки почты: ${smtpErr.message || smtpErr}`)
+    // SMTP failed: clean up user and verification so they can retry
+    if (userId) { try { await db.delete(user).where(eq(user.id, userId)) } catch (_) {} }
+    if (verId) { try { await db.delete(verification).where(eq(verification.id, verId)) } catch (_) {} }
+    return { success: false, error: 'Не удалось отправить письмо: ' + (smtpErr.message || String(smtpErr)) }
   }
 
-  return { success: true, message: 'Код подтверждения отправлен на почту' }
+  return { success: true }
 }
 
