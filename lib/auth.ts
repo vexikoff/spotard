@@ -12,6 +12,13 @@ export const transporter = nodemailer.createTransport({
   },
 })
 
+// Auto-migrate database table user to add banned column on module load
+try {
+  pool.query('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS "banned" BOOLEAN NOT NULL DEFAULT FALSE;').catch((e) => {
+    console.error('Auto-migration error (can be ignored if column exists):', e)
+  })
+} catch (err) {}
+
 export const auth = betterAuth({
   database: pool,
   baseURL:
