@@ -25,14 +25,6 @@
 
 Сайт: https://spotard.claus-maslov.space
 
-## Технологии
-
-- Frontend: HTML, CSS, JavaScript
-- Backend: Python
-- Real-time: Pusher (WebSocket)
-- База данных: SQLite
-- Хостинг: Cloudflare Pages
-
 ## Telegram бот
 
 [spotard_bot](https://t.me/spotard_bot/open) — для быстрого доступа к карте
