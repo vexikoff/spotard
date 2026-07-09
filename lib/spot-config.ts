@@ -132,7 +132,8 @@ export function getMapStyle(value: string) {
 }
 
 export function getSpotType(value: string) {
-  return SPOT_TYPES.find((t) => t.value === value) ?? SPOT_TYPES[0]
+  const first = (value ?? '').split(',')[0].trim()
+  return SPOT_TYPES.find((t) => t.value === first) ?? SPOT_TYPES[0]
 }
 
 export function getCategoryLabel(value: string) {

@@ -69,9 +69,15 @@ function SpotForm({
   onCancel: () => void
 }) {
   const [name, setName] = useState(initial?.name ?? '')
-  const [spotType, setSpotType] = useState(initial?.spotType ?? 'street')
+  const [selectedTypes, setSelectedTypes] = useState<string[]>(() => {
+    const val = initial?.spotType ?? 'street'
+    return val.split(',').map((t) => t.trim()).filter(Boolean)
+  })
   const [difficulty, setDifficulty] = useState(initial?.difficulty ?? 3)
-  const [surface, setSurface] = useState(initial?.surface ?? 'concrete')
+  const [selectedSurfaces, setSelectedSurfaces] = useState<string[]>(() => {
+    const val = initial?.surface ?? 'concrete'
+    return val.split(',').map((s) => s.trim()).filter(Boolean)
+  })
   const [security, setSecurity] = useState(initial?.security ?? 'chill')
   const [lighting, setLighting] = useState(initial?.lighting ?? false)
   const [covered, setCovered] = useState(initial?.covered ?? false)
@@ -86,6 +92,33 @@ function SpotForm({
       return []
     }
   })
+
+  const toggleSpotType = (val: string) => {
+    let next = [...selectedTypes]
+    if (next.includes(val)) {
+      if (next.length > 1) {
+        next = next.filter((t) => t !== val)
+      }
+    } else {
+      next.push(val)
+    }
+    setSelectedTypes(next)
+    if (next.length > 0) {
+      onTypeChange(next[0])
+    }
+  }
+
+  const toggleSurface = (val: string) => {
+    let next = [...selectedSurfaces]
+    if (next.includes(val)) {
+      if (next.length > 1) {
+        next = next.filter((s) => s !== val)
+      }
+    } else {
+      next.push(val)
+    }
+    setSelectedSurfaces(next)
+  }
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || [])
@@ -114,9 +147,9 @@ function SpotForm({
       name,
       lat: point.lat,
       lng: point.lng,
-      spotType,
+      spotType: selectedTypes.join(','),
       difficulty,
-      surface,
+      surface: selectedSurfaces.join(','),
       security,
       lighting,
       covered,
@@ -152,13 +185,10 @@ function SpotForm({
                 <button
                   key={t.value}
                   type="button"
-                  onClick={() => {
-                    setSpotType(t.value)
-                    onTypeChange(t.value)
-                  }}
+                  onClick={() => toggleSpotType(t.value)}
                   className={cn(
                     'flex items-center gap-2 rounded-lg px-3 py-2 text-left text-sm transition-colors',
-                    spotType === t.value
+                    selectedTypes.includes(t.value)
                       ? 'bg-primary/20 font-semibold text-foreground'
                       : 'bg-secondary text-muted-foreground hover:text-foreground',
                   )}
@@ -199,17 +229,28 @@ function SpotForm({
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        <label className="flex flex-col gap-1.5">
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-2">
           <FieldLabel>Покрытие</FieldLabel>
-          <select className={inputClass} value={surface} onChange={(e) => setSurface(e.target.value)}>
+          <div className="grid grid-cols-2 gap-2">
             {SURFACES.map((s) => (
-              <option key={s.value} value={s.value}>
+              <button
+                key={s.value}
+                type="button"
+                onClick={() => toggleSurface(s.value)}
+                className={cn(
+                  'rounded-lg px-3 py-2 text-center text-sm transition-colors',
+                  selectedSurfaces.includes(s.value)
+                    ? 'bg-primary/20 font-semibold text-foreground'
+                    : 'bg-secondary text-muted-foreground hover:text-foreground',
+                )}
+              >
                 {s.label}
-              </option>
+              </button>
             ))}
-          </select>
-        </label>
+          </div>
+        </div>
+
         <label className="flex flex-col gap-1.5">
           <FieldLabel>Охрана</FieldLabel>
           <select className={inputClass} value={security} onChange={(e) => setSecurity(e.target.value)}>
@@ -479,12 +520,17 @@ function SpotDetails({
     parsedImages = []
   }
 
-  const type = getSpotType(spot.spotType)
+  const types = spot.spotType.split(',').map((t) => getSpotType(t.trim()))
   const sec = getSecurity(spot.security)
   const tags = spot.tags
     .split(',')
     .map((t) => t.trim())
     .filter(Boolean)
+
+  const surfaces = spot.surface
+    .split(',')
+    .map((s) => getSurfaceLabel(s.trim()))
+    .join(', ')
 
   return (
     <div className="flex flex-col gap-5">
@@ -501,12 +547,15 @@ function SpotDetails({
 
       <div className="flex items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2">
-          <span
-            className="rounded-full px-3 py-1 font-mono text-xs font-bold uppercase tracking-wider"
-            style={{ backgroundColor: type.color, color: '#16171d' }}
-          >
-            {type.label}
-          </span>
+          {types.map((t) => (
+            <span
+              key={t.value}
+              className="rounded-full px-3 py-1 font-mono text-xs font-bold uppercase tracking-wider"
+              style={{ backgroundColor: t.color, color: '#16171d' }}
+            >
+              {t.label}
+            </span>
+          ))}
           <span className="font-mono text-xs text-muted-foreground">
             {spot.lat.toFixed(5)}, {spot.lng.toFixed(5)}
           </span>
@@ -552,7 +601,7 @@ function SpotDetails({
         </div>
         <div className="flex flex-col gap-0.5">
           <FieldLabel>Покрытие</FieldLabel>
-          <span className="text-sm">{getSurfaceLabel(spot.surface)}</span>
+          <span className="text-sm">{surfaces}</span>
         </div>
         <div className="flex flex-col gap-0.5">
           <FieldLabel>Охрана</FieldLabel>

@@ -3,9 +3,9 @@
 import { headers } from 'next/headers'
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { comments, messages, reports, spots, type Comment, type Message, type Report, type Spot } from '@/lib/db/schema'
+import { comments, messages, reports, spots, user, type Comment, type Message, type Report, type Spot } from '@/lib/db/schema'
 import { getUserRole } from '@/lib/spot-config'
-import { and, desc, eq } from 'drizzle-orm'
+import { and, desc, eq, sql } from 'drizzle-orm'
 import { triggerPusher } from '@/lib/pusher'
 
 export type SpotInput = {
@@ -82,9 +82,21 @@ function validate(input: SpotInput): SpotInput {
     name,
     lat: input.lat,
     lng: input.lng,
-    spotType: SPOT_TYPES.includes(input.spotType) ? input.spotType : 'street',
+    spotType: input.spotType
+      ? input.spotType
+          .split(',')
+          .map((t) => t.trim())
+          .filter((t) => SPOT_TYPES.includes(t))
+          .join(',') || 'street'
+      : 'street',
     difficulty: Math.min(5, Math.max(1, Math.round(input.difficulty) || 3)),
-    surface: SURFACES.includes(input.surface) ? input.surface : 'concrete',
+    surface: input.surface
+      ? input.surface
+          .split(',')
+          .map((s) => s.trim())
+          .filter((s) => SURFACES.includes(s))
+          .join(',') || 'concrete'
+      : 'concrete',
     security: SECURITY.includes(input.security) ? input.security : 'chill',
     lighting: Boolean(input.lighting),
     covered: Boolean(input.covered),
@@ -355,5 +367,39 @@ export async function getIpLocation(): Promise<{ lat: number; lng: number } | nu
   }
 
   return null
+}
+
+const globalRef = global as unknown as {
+  onlineTracker?: Map<string, number>
+}
+if (!globalRef.onlineTracker) {
+  globalRef.onlineTracker = new Map()
+}
+
+export async function pingOnline(clientId: string): Promise<{
+  online: number
+  spots: number
+  users: number
+}> {
+  const now = Date.now()
+  const tracker = globalRef.onlineTracker!
+  tracker.set(clientId, now)
+
+  // Prune pings older than 45 seconds
+  for (const [id, time] of tracker.entries()) {
+    if (now - time > 45000) {
+      tracker.delete(id)
+    }
+  }
+
+  // Count spots and users
+  const [spotsRes] = await db.select({ count: sql<number>`count(*)` }).from(spots)
+  const [usersRes] = await db.select({ count: sql<number>`count(*)` }).from(user)
+
+  return {
+    online: tracker.size,
+    spots: Number(spotsRes?.count ?? 0),
+    users: Number(usersRes?.count ?? 0),
+  }
 }
 

@@ -21,6 +21,7 @@ import {
   sendMessage,
   updateSpot,
   toggleLikeSpot,
+  pingOnline,
   type SpotInput,
 } from '@/app/actions/spots'
 import type { SpotCluster } from '@/components/spot-map'
@@ -72,6 +73,37 @@ export default function MapApp({ initialSpots }: { initialSpots: Spot[] }) {
   const [mapStyle, setMapStyle] = useState('dark')
   const [notice, setNotice] = useState('')
   const [legendOpen, setLegendOpen] = useState(false)
+  const [statsOpen, setStatsOpen] = useState(false)
+  const [statsData, setStatsData] = useState<{ online: number; spots: number; users: number } | null>(null)
+
+  const [clientId] = useState(() => {
+    if (typeof window !== 'undefined') {
+      let id = sessionStorage.getItem('spotard_client_id')
+      if (!id) {
+        id = Math.random().toString(36).substring(2, 15)
+        sessionStorage.setItem('spotard_client_id', id)
+      }
+      return id
+    }
+    return ''
+  })
+
+  useEffect(() => {
+    if (!clientId) return
+
+    async function fetchStats() {
+      try {
+        const data = await pingOnline(clientId)
+        setStatsData(data)
+      } catch (err) {
+        console.error('Stats fetch error:', err)
+      }
+    }
+
+    fetchStats()
+    const interval = setInterval(fetchStats, 30000)
+    return () => clearInterval(interval)
+  }, [clientId])
 
   // Filters + search
   const [typeFilter, setTypeFilter] = useState<Set<string>>(new Set())
@@ -435,8 +467,13 @@ export default function MapApp({ initialSpots }: { initialSpots: Spot[] }) {
           </a>
 
           {/* Settings */}
+          {/* Settings */}
           <button
-            onClick={() => setSettingsOpen(!settingsOpen)}
+            onClick={() => {
+              setSettingsOpen(!settingsOpen)
+              setReportsOpen(false)
+              setStatsOpen(false)
+            }}
             aria-expanded={settingsOpen}
             aria-label="Настройки"
             className={cn(
@@ -456,7 +493,11 @@ export default function MapApp({ initialSpots }: { initialSpots: Spot[] }) {
           {/* Staff: reports */}
           {isStaff && (
             <button
-              onClick={() => setReportsOpen(!reportsOpen)}
+              onClick={() => {
+                setReportsOpen(!reportsOpen)
+                setSettingsOpen(false)
+                setStatsOpen(false)
+              }}
               aria-expanded={reportsOpen}
               className={cn(
                 'flex items-center gap-2 rounded-xl px-3.5 py-2.5 font-mono text-xs font-bold shadow-2xl backdrop-blur-md transition-colors',
@@ -469,6 +510,24 @@ export default function MapApp({ initialSpots }: { initialSpots: Spot[] }) {
                   {openReports.length}
                 </span>
               )}
+            </button>
+          )}
+
+          {/* Admin: statistics */}
+          {isAdmin && (
+            <button
+              onClick={() => {
+                setStatsOpen(!statsOpen)
+                setReportsOpen(false)
+                setSettingsOpen(false)
+              }}
+              aria-expanded={statsOpen}
+              className={cn(
+                'flex items-center gap-2 rounded-xl px-3.5 py-2.5 font-mono text-xs font-bold shadow-2xl backdrop-blur-md transition-colors',
+                statsOpen ? 'bg-white text-black' : 'bg-black/85 text-white/80 hover:text-white',
+              )}
+            >
+              Статистика
             </button>
           )}
 
@@ -882,6 +941,37 @@ export default function MapApp({ initialSpots }: { initialSpots: Spot[] }) {
             })}
           </div>
         </div>
+      )}
+
+      {isAdmin && statsOpen && (
+        <aside className="pointer-events-auto absolute inset-x-0 bottom-0 z-[1000] flex flex-col rounded-t-2xl bg-card/95 p-5 shadow-2xl backdrop-blur-md md:inset-x-auto md:top-20 md:right-4 md:bottom-4 md:h-fit md:w-95 md:rounded-2xl">
+          <div className="flex items-center justify-between pb-3">
+            <h2 className="font-display text-base font-semibold text-white">Статистика сайта</h2>
+            <button
+              onClick={() => setStatsOpen(false)}
+              className="flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              aria-label="Закрыть статистику"
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              </svg>
+            </button>
+          </div>
+          <div className="flex flex-col gap-4 py-2 font-mono text-sm">
+            <div className="flex justify-between bg-secondary p-3 rounded-lg">
+              <span className="text-muted-foreground uppercase text-xs tracking-wider">Актуальный онлайн:</span>
+              <span className="font-bold text-white">{statsData?.online ?? 1}</span>
+            </div>
+            <div className="flex justify-between bg-secondary p-3 rounded-lg">
+              <span className="text-muted-foreground uppercase text-xs tracking-wider">Всего спотов:</span>
+              <span className="font-bold text-white">{statsData?.spots ?? 0}</span>
+            </div>
+            <div className="flex justify-between bg-secondary p-3 rounded-lg">
+              <span className="text-muted-foreground uppercase text-xs tracking-wider">Число аккаунтов:</span>
+              <span className="font-bold text-white">{statsData?.users ?? 0}</span>
+            </div>
+          </div>
+        </aside>
       )}
 
       {mode && (
