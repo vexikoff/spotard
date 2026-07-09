@@ -69,6 +69,12 @@ const SECURITY = ['chill', 'medium', 'strict']
 async function getSessionUser() {
   const session = await auth.api.getSession({ headers: await headers() })
   if (!session?.user) throw new Error('Войди в аккаунт, чтобы делать это')
+
+  const [dbUser] = await db.select().from(user).where(eq(user.id, session.user.id))
+  if (dbUser && dbUser.banned) {
+    throw new Error('Твой аккаунт забанен')
+  }
+
   return session.user
 }
 
@@ -381,6 +387,12 @@ export async function pingOnline(clientId: string): Promise<{
   spots: number
   users: number
 }> {
+  try {
+    await db.execute(sql`ALTER TABLE "user" ADD COLUMN IF NOT EXISTS "banned" BOOLEAN NOT NULL DEFAULT FALSE;`)
+  } catch (err) {
+    // Ignore migration error if already migrated
+  }
+
   const now = Date.now()
   const tracker = globalRef.onlineTracker!
   tracker.set(clientId, now)
@@ -401,5 +413,40 @@ export async function pingOnline(clientId: string): Promise<{
     spots: Number(spotsRes?.count ?? 0),
     users: Number(usersRes?.count ?? 0),
   }
+}
+
+export async function checkUsernameExists(name: string): Promise<boolean> {
+  const clean = name.trim().toLowerCase()
+  if (!clean) return false
+  const [existing] = await db
+    .select()
+    .from(user)
+    .where(eq(sql`lower(${user.name})`, clean))
+    .limit(1)
+  return Boolean(existing)
+}
+
+export async function getUsersList() {
+  const sessionUser = await getSessionUser()
+  if (getUserRole(sessionUser.email, sessionUser.name) !== 'admin') {
+    throw new Error('Нет доступа')
+  }
+  return db.select().from(user).orderBy(desc(user.createdAt))
+}
+
+export async function toggleBanUser(userId: string) {
+  const sessionUser = await getSessionUser()
+  if (getUserRole(sessionUser.email, sessionUser.name) !== 'admin') {
+    throw new Error('Нет доступа')
+  }
+  const [existing] = await db.select().from(user).where(eq(user.id, userId))
+  if (!existing) throw new Error('Пользователь не найден')
+  
+  if (existing.id === sessionUser.id) {
+    throw new Error('Нельзя забанить самого себя')
+  }
+
+  const nextBanned = !existing.banned
+  await db.update(user).set({ banned: nextBanned }).where(eq(user.id, userId))
 }
 

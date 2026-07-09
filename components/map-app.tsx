@@ -22,6 +22,8 @@ import {
   updateSpot,
   toggleLikeSpot,
   pingOnline,
+  getUsersList,
+  toggleBanUser,
   type SpotInput,
 } from '@/app/actions/spots'
 import type { SpotCluster } from '@/components/spot-map'
@@ -104,6 +106,14 @@ export default function MapApp({ initialSpots }: { initialSpots: Spot[] }) {
     const interval = setInterval(fetchStats, 30000)
     return () => clearInterval(interval)
   }, [clientId])
+
+  const [usersList, setUsersList] = useState<any[]>([])
+
+  useEffect(() => {
+    if (statsOpen && isAdmin) {
+      getUsersList().then(setUsersList).catch(console.error)
+    }
+  }, [statsOpen, isAdmin])
 
   // Filters + search
   const [typeFilter, setTypeFilter] = useState<Set<string>>(new Set())
@@ -969,6 +979,41 @@ export default function MapApp({ initialSpots }: { initialSpots: Spot[] }) {
             <div className="flex justify-between bg-secondary p-3 rounded-lg">
               <span className="text-muted-foreground uppercase text-xs tracking-wider">Число аккаунтов:</span>
               <span className="font-bold text-white">{statsData?.users ?? 0}</span>
+            </div>
+          </div>
+
+          <div className="mt-4 flex flex-col gap-2 pt-2">
+            <span className="text-xs font-mono uppercase tracking-widest text-muted-foreground">Список пользователей ({usersList.length})</span>
+            <div className="flex max-h-48 flex-col gap-1.5 overflow-y-auto pr-1">
+              {usersList.map((u) => (
+                <div key={u.id} className="flex items-center justify-between rounded-lg bg-secondary p-2.5 font-mono text-xs">
+                  <div className="flex flex-col min-w-0">
+                    <span className="font-bold text-white truncate">{u.name}</span>
+                    <span className="text-[10px] text-muted-foreground truncate">{u.email}</span>
+                  </div>
+                  {u.id !== currentUserId && (
+                    <button
+                      onClick={async () => {
+                        try {
+                          await toggleBanUser(u.id)
+                          const updated = await getUsersList()
+                          setUsersList(updated)
+                        } catch (err) {
+                          alert(err instanceof Error ? err.message : 'Ошибка')
+                        }
+                      }}
+                      className={cn(
+                        "rounded px-2.5 py-1 text-[10px] font-bold uppercase transition-colors",
+                        u.banned
+                          ? "bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20"
+                          : "bg-destructive/10 text-destructive-foreground hover:bg-destructive/20"
+                      )}
+                    >
+                      {u.banned ? 'Разбан' : 'Бан'}
+                    </button>
+                  )}
+                </div>
+              ))}
             </div>
           </div>
         </aside>

@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { authClient } from '@/lib/auth-client'
 import { Button } from '@/components/ui/button'
+import { checkUsernameExists } from '@/app/actions/spots'
 
 const inputClass =
   'w-full rounded-lg bg-secondary px-3.5 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/60'
@@ -16,6 +17,7 @@ export function AuthForm({ mode }: { mode: 'sign-in' | 'sign-up' }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
   const isSignUp = mode === 'sign-up'
@@ -25,19 +27,39 @@ export function AuthForm({ mode }: { mode: 'sign-in' | 'sign-up' }) {
     setError(null)
     setLoading(true)
 
-    const { error } = isSignUp
-      ? await authClient.signUp.email({ email, password, name })
-      : await authClient.signIn.email({ email, password })
+    if (isSignUp) {
+      try {
+        const exists = await checkUsernameExists(name)
+        if (exists) {
+          setError('Этот ник уже занят, выбери другой')
+          setLoading(false)
+          return
+        }
+      } catch (err) {
+        console.error(err)
+      }
 
-    setLoading(false)
+      const { error } = await authClient.signUp.email({ email, password, name })
+      setLoading(false)
 
-    if (error) {
-      setError(error.message ?? 'Что-то пошло не так')
-      return
+      if (error) {
+        setError(error.message ?? 'Что-то пошло не так')
+        return
+      }
+
+      setSuccessMessage('Аккаунт создан! Письмо с подтверждением отправлено на твой email. Подтверди почту перед входом.')
+    } else {
+      const { error } = await authClient.signIn.email({ email, password })
+      setLoading(false)
+
+      if (error) {
+        setError(error.message ?? 'Что-то пошло не так')
+        return
+      }
+
+      router.push('/')
+      router.refresh()
     }
-
-    router.push('/')
-    router.refresh()
   }
 
   return (
@@ -63,67 +85,90 @@ export function AuthForm({ mode }: { mode: 'sign-in' | 'sign-up' }) {
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          {isSignUp && (
-            <label className="flex flex-col gap-1.5">
-              <span className="font-mono text-xs tracking-widest text-muted-foreground uppercase">Ник</span>
-              <input
-                className={inputClass}
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
-                autoComplete="name"
-                placeholder="Твой ник на карте"
-                maxLength={40}
-              />
-            </label>
-          )}
-          <label className="flex flex-col gap-1.5">
-            <span className="font-mono text-xs tracking-widest text-muted-foreground uppercase">Email</span>
-            <input
-              className={inputClass}
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              autoComplete="email"
-              placeholder="you@example.com"
-            />
-          </label>
-          <label className="flex flex-col gap-1.5">
-            <span className="font-mono text-xs tracking-widest text-muted-foreground uppercase">Пароль</span>
-            <input
-              className={inputClass}
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              minLength={8}
-              autoComplete={isSignUp ? 'new-password' : 'current-password'}
-              placeholder="Минимум 8 символов"
-            />
-          </label>
+        {successMessage ? (
+          <div className="flex flex-col items-center gap-4 text-center">
+            <div className="rounded-full bg-emerald-500/10 p-3 text-emerald-500">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <path d="M20 6L9 17l-5-5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </div>
+            <p className="text-sm font-mono text-white/90 leading-relaxed">{successMessage}</p>
+            <Link
+              href="/sign-in"
+              onClick={() => {
+                setSuccessMessage(null)
+                setError(null)
+              }}
+              className="mt-2 text-xs font-mono uppercase tracking-widest text-primary underline-offset-4 hover:underline"
+            >
+              Войти в аккаунт
+            </Link>
+          </div>
+        ) : (
+          <>
+            <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+              {isSignUp && (
+                <label className="flex flex-col gap-1.5">
+                  <span className="font-mono text-xs tracking-widest text-muted-foreground uppercase">Ник</span>
+                  <input
+                    className={inputClass}
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    required
+                    autoComplete="name"
+                    placeholder="Твой ник на карте"
+                    maxLength={40}
+                  />
+                </label>
+              )}
+              <label className="flex flex-col gap-1.5">
+                <span className="font-mono text-xs tracking-widest text-muted-foreground uppercase">Email</span>
+                <input
+                  className={inputClass}
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  autoComplete="email"
+                  placeholder="you@example.com"
+                />
+              </label>
+              <label className="flex flex-col gap-1.5">
+                <span className="font-mono text-xs tracking-widest text-muted-foreground uppercase">Пароль</span>
+                <input
+                  className={inputClass}
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  minLength={8}
+                  autoComplete={isSignUp ? 'new-password' : 'current-password'}
+                  placeholder="Минимум 8 символов"
+                />
+              </label>
 
-          {error && (
-            <p className="text-sm text-destructive" role="alert">
-              {error}
+              {error && (
+                <p className="text-sm text-destructive" role="alert">
+                  {error}
+                </p>
+              )}
+
+              <Button type="submit" disabled={loading} className="w-full">
+                {loading ? 'Подожди...' : isSignUp ? 'Создать аккаунт' : 'Войти'}
+              </Button>
+            </form>
+
+            <p className="mt-6 text-center text-sm text-muted-foreground">
+              {isSignUp ? 'Уже есть аккаунт? ' : 'Нет аккаунта? '}
+              <Link
+                href={isSignUp ? '/sign-in' : '/sign-up'}
+                className="font-medium text-foreground underline-offset-4 hover:underline"
+              >
+                {isSignUp ? 'Войти' : 'Зарегистрироваться'}
+              </Link>
             </p>
-          )}
-
-          <Button type="submit" disabled={loading} className="w-full">
-            {loading ? 'Подожди...' : isSignUp ? 'Создать аккаунт' : 'Войти'}
-          </Button>
-        </form>
-
-        <p className="mt-6 text-center text-sm text-muted-foreground">
-          {isSignUp ? 'Уже есть аккаунт? ' : 'Нет аккаунта? '}
-          <Link
-            href={isSignUp ? '/sign-in' : '/sign-up'}
-            className="font-medium text-foreground underline-offset-4 hover:underline"
-          >
-            {isSignUp ? 'Войти' : 'Зарегистрироваться'}
-          </Link>
-        </p>
+          </>
+        )}
 
         <p className="mt-3 text-center">
           <Link href="/" className="font-mono text-xs text-muted-foreground underline-offset-4 hover:underline">
