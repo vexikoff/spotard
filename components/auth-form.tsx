@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { authClient } from '@/lib/auth-client'
 import { Button } from '@/components/ui/button'
-import { checkUsernameExists } from '@/app/actions/spots'
+import { checkUsernameExists, signUpWithVerification } from '@/app/actions/spots'
 
 const inputClass =
   'w-full rounded-lg bg-secondary px-3.5 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/60'
@@ -62,15 +62,18 @@ export function AuthForm({ mode }: { mode: 'sign-in' | 'sign-up' }) {
         console.error(err)
       }
 
-      const { error } = await authClient.signUp.email({ email, password, name })
-      setLoading(false)
-
-      if (error) {
-        setError(error.message ?? 'Что-то пошло не так')
-        return
+      try {
+        const res = await signUpWithVerification({ email, password, name })
+        setLoading(false)
+        if (res.success) {
+          setSuccessMessage('Аккаунт создан! Код подтверждения отправлен на твой email. Подтверди почту перед входом.')
+        } else {
+          setError(res.message || 'Что-то пошло не так')
+        }
+      } catch (err: any) {
+        setLoading(false)
+        setError(err.message || 'Что-то пошло не так')
       }
-
-      setSuccessMessage('Аккаунт создан! Письмо с подтверждением отправлено на твой email. Подтверди почту перед входом.')
     } else {
       const { error } = await authClient.signIn.email({ email, password })
       setLoading(false)

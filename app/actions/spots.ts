@@ -3,10 +3,11 @@
 import { headers } from 'next/headers'
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { comments, messages, reports, spots, user, type Comment, type Message, type Report, type Spot } from '@/lib/db/schema'
+import { comments, messages, reports, spots, user, verification, type Comment, type Message, type Report, type Spot } from '@/lib/db/schema'
 import { getUserRole } from '@/lib/spot-config'
 import { and, desc, eq, sql } from 'drizzle-orm'
 import { triggerPusher } from '@/lib/pusher'
+import { transporter } from '@/lib/auth'
 
 export type SpotInput = {
   name: string
@@ -448,5 +449,83 @@ export async function toggleBanUser(userId: string) {
 
   const nextBanned = !existing.banned
   await db.update(user).set({ banned: nextBanned }).where(eq(user.id, userId))
+}
+
+export async function signUpWithVerification(input: {
+  email: string
+  password: string
+  name: string
+}): Promise<{ success: boolean; message: string }> {
+  const { email, password, name } = input
+  
+  // 1. Check if name is unique
+  const nameExists = await checkUsernameExists(name)
+  if (nameExists) {
+    throw new Error('Этот ник уже занят, выбери другой')
+  }
+
+  let userRecord: any = null
+  try {
+    // 2. Call Better Auth signup on the server
+    const reqHeaders = await headers()
+    userRecord = await auth.api.signUpEmail({
+      body: { email, password, name },
+      headers: reqHeaders,
+    })
+  } catch (err: any) {
+    throw new Error(err.message || 'Ошибка регистрации в системе')
+  }
+
+  // 3. Find the created verification code
+  const [ver] = await db
+    .select()
+    .from(verification)
+    .where(eq(verification.identifier, email.trim().toLowerCase()))
+    .orderBy(desc(verification.createdAt))
+    .limit(1)
+
+  if (!ver) {
+    // Clean up user if verification record wasn't created
+    if (userRecord?.user?.id) {
+      await db.delete(user).where(eq(user.id, userRecord.user.id))
+    }
+    throw new Error('Не удалось создать код подтверждения')
+  }
+
+  // 4. Send email synchronously
+  try {
+    const mailOptions = {
+      from: '"spotard" <campminecraftmaps@gmail.com>',
+      to: email,
+      subject: 'Код подтверждения на spotard',
+      html: `
+        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #16171d; color: #ffffff; border-radius: 16px;">
+          <div style="text-align: center; margin-bottom: 24px;">
+            <h1 style="color: #c8f542; font-size: 24px; margin-bottom: 8px; font-weight: bold; text-transform: lowercase; font-family: monospace;">spotard</h1>
+            <p style="color: #a0a0a0; font-size: 14px; margin: 0;">карта спотов для трюков</p>
+          </div>
+          <div style="background-color: #22232a; padding: 24px; border-radius: 12px; margin-bottom: 24px; text-align: center;">
+            <p style="margin-top: 0; font-size: 16px; line-height: 1.5; text-align: left;">Привет, <strong>${name}</strong>!</p>
+            <p style="font-size: 14px; line-height: 1.5; color: #e0e0e0; text-align: left;">Введи этот код на сайте, чтобы подтвердить свой email и активировать аккаунт:</p>
+            <div style="background-color: #16171d; color: #c8f542; font-size: 32px; font-weight: bold; font-family: monospace; letter-spacing: 6px; padding: 16px; border-radius: 8px; display: inline-block; margin: 16px 0;">
+              ${ver.value}
+            </div>
+            <p style="font-size: 12px; color: #a0a0a0; margin-bottom: 0; text-align: left;">Код действителен в течение 1 часа.</p>
+          </div>
+          <p style="text-align: center; font-size: 11px; color: #606060; margin: 0;">Это письмо отправлено автоматически. Пожалуйста, не отвечайте на него.</p>
+        </div>
+      `,
+    }
+    await transporter.sendMail(mailOptions)
+  } catch (smtpErr: any) {
+    // CLEAN UP: Delete user and verification code if SMTP failed so user can register again!
+    if (userRecord?.user?.id) {
+      await db.delete(user).where(eq(user.id, userRecord.user.id))
+    }
+    await db.delete(verification).where(eq(verification.id, ver.id))
+    throw new Error(`Ошибка отправки почты: ${smtpErr.message || smtpErr}`)
+  }
+
+  return { success: true, message: 'Код подтверждения отправлен на почту' }
 }
 

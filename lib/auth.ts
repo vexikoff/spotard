@@ -2,7 +2,7 @@ import { betterAuth } from 'better-auth'
 import { pool } from '@/lib/db'
 import nodemailer from 'nodemailer'
 
-const transporter = nodemailer.createTransport({
+export const transporter = nodemailer.createTransport({
   host: 'smtp.gmail.com',
   port: 465,
   secure: true,
@@ -27,41 +27,9 @@ export const auth = betterAuth({
     requireEmailVerification: true,
   },
   emailVerification: {
-    sendOnSignUp: true,
+    sendOnSignUp: false,
     generateVerificationToken: async () => {
       return Math.floor(100000 + Math.random() * 900000).toString()
-    },
-    send: async ({ user, url, token }) => {
-      const mailOptions = {
-        from: '"spotard" <campminecraftmaps@gmail.com>',
-        to: user.email,
-        subject: 'Код подтверждения на spotard',
-        html: `
-          <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #16171d; color: #ffffff; border-radius: 16px;">
-            <div style="text-align: center; margin-bottom: 24px;">
-              <h1 style="color: #c8f542; font-size: 24px; margin-bottom: 8px; font-weight: bold; text-transform: lowercase; font-family: monospace;">spotard</h1>
-              <p style="color: #a0a0a0; font-size: 14px; margin: 0;">карта спотов для трюков</p>
-            </div>
-            <div style="background-color: #22232a; padding: 24px; border-radius: 12px; margin-bottom: 24px; text-align: center;">
-              <p style="margin-top: 0; font-size: 16px; line-height: 1.5; text-align: left;">Привет, <strong>${user.name}</strong>!</p>
-              <p style="font-size: 14px; line-height: 1.5; color: #e0e0e0; text-align: left;">Введи этот код на сайте, чтобы подтвердить свой email и активировать аккаунт:</p>
-              <div style="background-color: #16171d; color: #c8f542; font-size: 32px; font-weight: bold; font-family: monospace; letter-spacing: 6px; padding: 16px; border-radius: 8px; display: inline-block; margin: 16px 0;">
-                ${token}
-              </div>
-              <p style="font-size: 12px; color: #a0a0a0; margin-bottom: 0; text-align: left;">Код действителен в течение 1 часа.</p>
-            </div>
-            <p style="text-align: center; font-size: 11px; color: #606060; margin: 0;">Это письмо отправлено автоматически. Пожалуйста, не отвечайте на него.</p>
-          </div>
-        `,
-      }
-      console.log(`[SPOTARD SMTP] Attempting to send OTP email to ${user.email}`)
-      try {
-        const info = await transporter.sendMail(mailOptions)
-        console.log(`[SPOTARD SMTP] Email sent successfully to ${user.email}. MessageId: ${info.messageId}`)
-      } catch (err) {
-        console.error(`[SPOTARD SMTP] Error sending email to ${user.email}:`, err)
-        throw err
-      }
     },
   },
   trustedOrigins: [
