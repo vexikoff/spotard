@@ -427,22 +427,45 @@ function SpotDetails({
   }
 
   const [likeSending, setLikeSending] = useState(false)
+  const [localLikes, setLocalLikes] = useState<string[]>(() => {
+    try {
+      const parsed = JSON.parse(spot.likes || '[]')
+      return Array.isArray(parsed) ? parsed : []
+    } catch (e) {
+      return []
+    }
+  })
 
-  let likesList: string[] = []
-  try {
-    likesList = JSON.parse(spot.likes || '[]')
-    if (!Array.isArray(likesList)) likesList = []
-  } catch (e) {
-    likesList = []
-  }
-  const likesCount = likesList.length
-  const hasLiked = Boolean(currentUserId && likesList.includes(currentUserId))
+  useEffect(() => {
+    try {
+      const parsed = JSON.parse(spot.likes || '[]')
+      setLocalLikes(Array.isArray(parsed) ? parsed : [])
+    } catch (e) {
+      setLocalLikes([])
+    }
+  }, [spot.likes])
+
+  const likesCount = localLikes.length
+  const hasLiked = Boolean(currentUserId && localLikes.includes(currentUserId))
 
   async function handleLikeToggle() {
     if (!currentUserId || !onLike || likeSending) return
+
+    // Optimistic toggle
+    let nextLikes = [...localLikes]
+    if (nextLikes.includes(currentUserId)) {
+      nextLikes = nextLikes.filter((id) => id !== currentUserId)
+    } else {
+      nextLikes.push(currentUserId)
+    }
+    setLocalLikes(nextLikes)
+
     setLikeSending(true)
     try {
       await onLike()
+    } catch (err) {
+      // Revert local state on error
+      setLocalLikes(localLikes)
     } finally {
       setLikeSending(false)
     }
@@ -492,7 +515,7 @@ function SpotDetails({
         {/* Like Button */}
         <button
           onClick={handleLikeToggle}
-          disabled={!currentUserId || likeSending}
+          disabled={!currentUserId}
           className={cn(
             "flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-mono text-xs font-bold transition-colors bg-secondary",
             hasLiked ? "text-rose-500 bg-rose-500/10" : "text-muted-foreground hover:text-foreground",
@@ -646,6 +669,7 @@ export default function SpotPanel({
   onDelete,
   onReport,
   onClose,
+  onLike,
 }: {
   mode: 'create' | 'view' | 'edit'
   draft: DraftPoint | null
