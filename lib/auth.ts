@@ -3,9 +3,11 @@ import { pool } from '@/lib/db'
 import nodemailer from 'nodemailer'
 
 const transporter = nodemailer.createTransport({
-  service: 'gmail',
+  host: 'smtp.gmail.com',
+  port: 465,
+  secure: true,
   auth: {
-    user: process.env.SMTP_USER || 'jyulinfl2024@gmail.com',
+    user: 'campminecraftmaps@gmail.com',
     pass: 'qhyl fuqr cocu itlg',
   },
 })
@@ -28,7 +30,7 @@ export const auth = betterAuth({
     sendOnSignUp: true,
     send: async ({ user, url, token }) => {
       const mailOptions = {
-        from: `"spotard" <${process.env.SMTP_USER || 'jyulinfl2024@gmail.com'}>`,
+        from: '"spotard" <campminecraftmaps@gmail.com>',
         to: user.email,
         subject: 'Подтверждение почты на spotard',
         html: `
