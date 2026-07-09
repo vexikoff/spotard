@@ -20,6 +20,7 @@ export type SpotInput = {
   covered: boolean
   description: string
   tags: string
+  images?: string
 }
 
 const SPOT_TYPES = [
@@ -89,6 +90,7 @@ function validate(input: SpotInput): SpotInput {
     covered: Boolean(input.covered),
     description: input.description.trim().slice(0, 1000),
     tags: input.tags.trim().slice(0, 200),
+    images: input.images ? input.images : '[]',
   }
 }
 
@@ -200,6 +202,35 @@ export async function approveReportAndDeleteSpot(reportId: number): Promise<void
     .update(reports)
     .set({ status: 'dismissed' })
     .where(and(eq(reports.spotId, report.spotId), eq(reports.status, 'open')))
+}
+
+export async function toggleLikeSpot(spotId: number): Promise<Spot> {
+  const sessionUser = await getSessionUser()
+  const [existing] = await db.select().from(spots).where(eq(spots.id, spotId))
+  if (!existing) throw new Error('Спот не найден')
+
+  let likesList: string[] = []
+  try {
+    likesList = JSON.parse(existing.likes || '[]')
+    if (!Array.isArray(likesList)) likesList = []
+  } catch (e) {
+    likesList = []
+  }
+
+  if (likesList.includes(sessionUser.id)) {
+    likesList = likesList.filter((id) => id !== sessionUser.id)
+  } else {
+    likesList.push(sessionUser.id)
+  }
+
+  const [updated] = await db
+    .update(spots)
+    .set({ likes: JSON.stringify(likesList) })
+    .where(eq(spots.id, spotId))
+    .returning()
+
+  await triggerPusher('spots', 'updated', updated)
+  return updated
 }
 
 // --- Comments (комментарии к спотам) ----------------------------------------
