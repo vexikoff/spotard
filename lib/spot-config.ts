@@ -7,19 +7,16 @@ export const ADMIN_EMAILS = [
 
 export const ADMIN_NAMES = [
   'Claus_Maslov',
-  'Claus Maslov',
-  'claus_maslov',
-  'admin'
 ]
 
 // ==== СПИСОК МОДЕРАТОРОВ ====
 export const MODERATOR_EMAILS = [
-  'moder-x5m@spotard.app'
+  'moder-x5m@spotard.app',
+  'vova72181@gmail.com'
 ]
 
 export const MODERATOR_NAMES = [
-  'moderator',
-  'moder'
+  'Covek'
 ]
 
 export type UserRole = 'admin' | 'moderator' | 'user'
