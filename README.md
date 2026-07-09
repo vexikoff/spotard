@@ -43,5 +43,5 @@
 
 ## Авторы
 
-- [Vexikoff](https://github.com/vexikoff)
-- [Claus_Maslov](https://github.com/Claus-Maslov)
+- [vexikoff](https://github.com/vexikoff)
+- [Claus_Maslov](https://github.com/Claus_Maslov)
