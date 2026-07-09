@@ -68,6 +68,10 @@ const SURFACES = ['concrete', 'asphalt', 'wood', 'metal', 'marble', 'brick', 'di
 const SECURITY = ['chill', 'medium', 'strict']
 
 async function getSessionUser() {
+  try {
+    await db.execute(sql`ALTER TABLE "user" ADD COLUMN IF NOT EXISTS "banned" BOOLEAN NOT NULL DEFAULT FALSE;`)
+  } catch (err) {}
+
   const session = await auth.api.getSession({ headers: await headers() })
   if (!session?.user) throw new Error('Войди в аккаунт, чтобы делать это')
 
@@ -417,6 +421,10 @@ export async function pingOnline(clientId: string): Promise<{
 }
 
 export async function checkUsernameExists(name: string): Promise<boolean> {
+  try {
+    await db.execute(sql`ALTER TABLE "user" ADD COLUMN IF NOT EXISTS "banned" BOOLEAN NOT NULL DEFAULT FALSE;`)
+  } catch (err) {}
+
   const clean = name.trim().toLowerCase()
   if (!clean) return false
   const [existing] = await db
