@@ -8,7 +8,7 @@ const _unbounded = Unbounded({ subsets: ['latin', 'cyrillic'], weight: ['400', '
 const _jetbrainsMono = JetBrains_Mono({ subsets: ['latin', 'cyrillic'] })
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://v0-spotard.vercel.app'),
+  metadataBase: new URL('https://spotard.claus-maslov.space'),
   title: 'spotard — интерактивная карта спотов для трюков',
   description:
     'Интерактивная карта спотов: находи и добавляй места для трюков на скейте, самокате, роликах и BMX в своём городе.',
@@ -24,7 +24,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'spotard — интерактивная карта спотов для трюков',
     description: 'Находи и добавляй места для трюков на скейте, самокате и BMX в своём городе.',
-    url: 'https://v0-spotard.vercel.app',
+    url: 'https://spotard.claus-maslov.space',
     siteName: 'spotard',
     locale: 'ru_RU',
     type: 'website',
@@ -44,7 +44,7 @@ export const metadata: Metadata = {
     images: ['/images/spotard.png'],
   },
   alternates: {
-    canonical: 'https://v0-spotard.vercel.app',
+    canonical: 'https://spotard.claus-maslov.space',
   }
 }
 
@@ -69,7 +69,7 @@ export default function RootLayout({
               '@context': 'https://schema.org',
               '@type': 'WebApplication',
               'name': 'spotard',
-              'url': 'https://v0-spotard.vercel.app',
+              'url': 'https://spotard.claus-maslov.space',
               'description': 'Интерактивная карта спотов: находи и добавляй места для трюков на скейте, самокате, роликах и BMX.',
               'applicationCategory': 'UtilitiesApplication',
               'operatingSystem': 'All',
