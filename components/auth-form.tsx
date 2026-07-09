@@ -18,9 +18,32 @@ export function AuthForm({ mode }: { mode: 'sign-in' | 'sign-up' }) {
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const [enteredCode, setEnteredCode] = useState('')
+  const [verified, setVerified] = useState(false)
   const [loading, setLoading] = useState(false)
 
   const isSignUp = mode === 'sign-up'
+
+  const handleVerifyCode = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError(null)
+    setLoading(true)
+
+    const { error } = await authClient.verifyEmail({
+      query: {
+        token: enteredCode.trim(),
+      },
+    })
+    setLoading(false)
+
+    if (error) {
+      setError(error.message ?? 'Неверный или истекший код')
+      return
+    }
+
+    setVerified(true)
+    setSuccessMessage('Почта успешно подтверждена! Теперь ты можешь войти в свой аккаунт.')
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -93,16 +116,46 @@ export function AuthForm({ mode }: { mode: 'sign-in' | 'sign-up' }) {
               </svg>
             </div>
             <p className="text-sm font-mono text-white/90 leading-relaxed">{successMessage}</p>
-            <Link
-              href="/sign-in"
-              onClick={() => {
-                setSuccessMessage(null)
-                setError(null)
-              }}
-              className="mt-2 text-xs font-mono uppercase tracking-widest text-primary underline-offset-4 hover:underline"
-            >
-              Войти в аккаунт
-            </Link>
+
+            {!verified ? (
+              <form onSubmit={handleVerifyCode} className="mt-2 flex w-full flex-col gap-3">
+                <label className="flex flex-col gap-1.5 text-left">
+                  <span className="font-mono text-xs tracking-widest text-muted-foreground uppercase">Код из письма</span>
+                  <input
+                    className={inputClass}
+                    value={enteredCode}
+                    onChange={(e) => setEnteredCode(e.target.value)}
+                    required
+                    placeholder="Например: 123456"
+                    maxLength={6}
+                    autoFocus
+                  />
+                </label>
+
+                {error && (
+                  <p className="text-sm text-destructive" role="alert">
+                    {error}
+                  </p>
+                )}
+
+                <Button type="submit" disabled={loading} className="w-full">
+                  {loading ? 'Подтверждаем...' : 'Подтвердить код'}
+                </Button>
+              </form>
+            ) : (
+              <Link
+                href="/sign-in"
+                onClick={() => {
+                  setSuccessMessage(null)
+                  setVerified(false)
+                  setEnteredCode('')
+                  setError(null)
+                }}
+                className="mt-2 text-xs font-mono uppercase tracking-widest text-primary underline-offset-4 hover:underline"
+              >
+                Войти в аккаунт
+              </Link>
+            )}
           </div>
         ) : (
           <>
