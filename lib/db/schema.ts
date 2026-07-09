@@ -70,6 +70,8 @@ export const spots = pgTable('spots', {
   tags: text('tags').notNull().default(''),
   userId: text('userId'),
   authorName: text('authorName').notNull().default(''),
+  images: text('images').notNull().default('[]'),
+  likes: text('likes').notNull().default('[]'),
   createdAt: timestamp('createdAt').notNull().defaultNow(),
 })
 
