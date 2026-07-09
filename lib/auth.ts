@@ -39,6 +39,12 @@ export const auth = betterAuth({
       return Math.floor(100000 + Math.random() * 900000).toString()
     },
   },
+  socialProviders: {
+    google: {
+      clientId: process.env.GOOGLE_CLIENT_ID || '',
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
+    },
+  },
   trustedOrigins: [
     ...(process.env.NODE_ENV === 'development'
       ? ['http://localhost:3000', `http://localhost:${process.env.PORT ?? 3000}`]
