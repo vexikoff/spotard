@@ -1152,21 +1152,34 @@ export default function MapApp({ initialSpots }: { initialSpots: Spot[] }) {
               <p className="text-sm text-foreground text-center font-sans">
                 Интерактивная карта спотов для скейтборда, BMX, самоката и роликов.
               </p>
-              <div className="flex flex-col gap-2.5 bg-secondary/35 p-3.5 rounded-xl border border-border/5">
-                <div className="flex gap-2">
-                  <span>🗺️</span>
+              <div className="flex flex-col gap-3.5 bg-secondary/35 p-4 rounded-xl border border-border/5">
+                <div className="flex gap-3 items-start">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="text-primary shrink-0 size-4 mt-0.5">
+                    <polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21" />
+                    <line x1="9" y1="3" x2="9" y2="18" />
+                    <line x1="15" y1="6" x2="15" y2="21" />
+                  </svg>
                   <span>Находи лучшие места в своем городе</span>
                 </div>
-                <div className="flex gap-2">
-                  <span>📍</span>
+                <div className="flex gap-3 items-start">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="text-primary shrink-0 size-4 mt-0.5">
+                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+                    <circle cx="12" cy="10" r="3" />
+                  </svg>
                   <span>Добавляй новые споты кликом по карте</span>
                 </div>
-                <div className="flex gap-2">
-                  <span>💬</span>
+                <div className="flex gap-3 items-start">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="text-primary shrink-0 size-4 mt-0.5">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                  </svg>
                   <span>Общайся в реальном времени в чате</span>
                 </div>
-                <div className="flex gap-2">
-                  <span>⚠️</span>
+                <div className="flex gap-3 items-start">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="text-primary shrink-0 size-4 mt-0.5">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                    <line x1="12" y1="9" x2="12" y2="13" />
+                    <line x1="12" y1="17" x2="12.01" y2="17" />
+                  </svg>
                   <span>Следи за состоянием и опасностью спотов</span>
                 </div>
               </div>

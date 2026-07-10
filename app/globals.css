@@ -210,3 +210,10 @@
     opacity: 0;
   }
 }
+
+/* Hide Leaflet Ukraine flag completely */
+.leaflet-attribution-flag,
+.leaflet-control-attribution span.leaflet-attribution-flag,
+.leaflet-control-attribution svg {
+  display: none !important;
+}
