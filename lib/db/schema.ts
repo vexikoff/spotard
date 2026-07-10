@@ -73,6 +73,10 @@ export const spots = pgTable('spots', {
   authorName: text('authorName').notNull().default(''),
   images: text('images').notNull().default('[]'),
   likes: text('likes').notNull().default('[]'),
+  dangerLevel: integer('danger_level').notNull().default(1),
+  dangerDescription: text('danger_description').notNull().default(''),
+  wearLevel: text('wear_level').notNull().default('3'),
+  approvedName: text('approved_name'),
   createdAt: timestamp('createdAt').notNull().defaultNow(),
 })
 

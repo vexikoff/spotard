@@ -12,10 +12,22 @@ export const transporter = nodemailer.createTransport({
   },
 })
 
-// Auto-migrate database table user to add banned column on module load
+// Auto-migrate database table user and spots to add new columns on module load
 try {
   pool.query('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS "banned" BOOLEAN NOT NULL DEFAULT FALSE;').catch((e) => {
-    console.error('Auto-migration error (can be ignored if column exists):', e)
+    console.error('Auto-migration error for user.banned:', e)
+  })
+  pool.query('ALTER TABLE "spots" ADD COLUMN IF NOT EXISTS "danger_level" INTEGER NOT NULL DEFAULT 1;').catch((e) => {
+    console.error('Auto-migration error for spots.danger_level:', e)
+  })
+  pool.query('ALTER TABLE "spots" ADD COLUMN IF NOT EXISTS "danger_description" TEXT NOT NULL DEFAULT \'\';').catch((e) => {
+    console.error('Auto-migration error for spots.danger_description:', e)
+  })
+  pool.query('ALTER TABLE "spots" ADD COLUMN IF NOT EXISTS "wear_level" TEXT NOT NULL DEFAULT \'3\';').catch((e) => {
+    console.error('Auto-migration error for spots.wear_level:', e)
+  })
+  pool.query('ALTER TABLE "spots" ADD COLUMN IF NOT EXISTS "approved_name" TEXT;').catch((e) => {
+    console.error('Auto-migration error for spots.approved_name:', e)
   })
 } catch (err) {}
 

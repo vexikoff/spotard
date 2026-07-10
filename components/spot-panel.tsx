@@ -9,9 +9,11 @@ import {
   SPOT_CATEGORIES,
   SPOT_TYPES,
   SURFACES,
+  WEAR_LEVELS,
   getSecurity,
   getSpotType,
   getSurfaceLabel,
+  getWearLevelLabel,
 } from '@/lib/spot-config'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -57,6 +59,7 @@ function SpotForm({
   point,
   initial,
   saving,
+  isAdmin = false,
   onTypeChange,
   onSubmit,
   onCancel,
@@ -64,6 +67,7 @@ function SpotForm({
   point: DraftPoint
   initial?: Spot
   saving: boolean
+  isAdmin?: boolean
   onTypeChange: (t: string) => void
   onSubmit: (input: SpotInput) => void
   onCancel: () => void
@@ -83,6 +87,14 @@ function SpotForm({
   const [covered, setCovered] = useState(initial?.covered ?? false)
   const [description, setDescription] = useState(initial?.description ?? '')
   const [tags, setTags] = useState(initial?.tags ?? '')
+  
+  // New fields
+  const [dangerLevel, setDangerLevel] = useState(initial?.dangerLevel ?? 1)
+  const [dangerDescription, setDangerDescription] = useState(initial?.dangerDescription ?? '')
+  const [wearLevel, setWearLevel] = useState(initial?.wearLevel ?? '3')
+  const [approvedName, setApprovedName] = useState(initial?.approvedName ?? '')
+  const [hasApprovedName, setHasApprovedName] = useState(Boolean(initial?.approvedName))
+
   const [error, setError] = useState('')
   const [images, setImages] = useState<string[]>(() => {
     try {
@@ -156,6 +168,10 @@ function SpotForm({
       description,
       tags,
       images: JSON.stringify(images),
+      dangerLevel,
+      dangerDescription,
+      wearLevel,
+      approvedName: hasApprovedName ? approvedName : null,
     })
   }
 
@@ -229,6 +245,44 @@ function SpotForm({
         </div>
       </div>
 
+      <div className="flex flex-col gap-1.5">
+        <FieldLabel>Уровень опасности</FieldLabel>
+        <div className="flex gap-2" role="radiogroup" aria-label="Опасность от 1 до 5">
+          {[1, 2, 3, 4, 5].map((d) => (
+            <button
+              key={d}
+              type="button"
+              role="radio"
+              aria-checked={dangerLevel === d}
+              onClick={() => setDangerLevel(d)}
+              className={cn(
+                'flex h-10 flex-1 items-center justify-center rounded-lg font-mono text-sm font-bold transition-colors',
+                dangerLevel >= d
+                  ? d >= 4
+                    ? 'bg-red-500 text-white font-bold'
+                    : d === 3
+                      ? 'bg-amber-500 text-white font-bold'
+                      : 'bg-emerald-500 text-white font-bold'
+                  : 'bg-secondary text-muted-foreground hover:text-foreground',
+              )}
+            >
+              {d}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <label className="flex flex-col gap-1.5">
+        <FieldLabel>Описание опасности</FieldLabel>
+        <textarea
+          className={cn(inputClass, 'min-h-16 resize-y')}
+          value={dangerDescription}
+          onChange={(e) => setDangerDescription(e.target.value)}
+          placeholder="Почему опасно? Охрана, трафик, травмоопасность..."
+          maxLength={1000}
+        />
+      </label>
+
       <div className="flex flex-col gap-3">
         <div className="flex flex-col gap-2">
           <FieldLabel>Покрытие</FieldLabel>
@@ -292,6 +346,27 @@ function SpotForm({
         </button>
       </div>
 
+      <div className="flex flex-col gap-2">
+        <FieldLabel>Состояние / Износ спота</FieldLabel>
+        <div className="grid grid-cols-4 gap-2">
+          {WEAR_LEVELS.map((w) => (
+            <button
+              key={w.value}
+              type="button"
+              onClick={() => setWearLevel(w.value)}
+              className={cn(
+                'rounded-lg py-2 text-center text-xs transition-colors font-mono font-medium',
+                wearLevel === w.value
+                  ? 'bg-primary text-primary-foreground font-semibold'
+                  : 'bg-secondary text-muted-foreground hover:text-foreground',
+              )}
+            >
+              {w.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <label className="flex flex-col gap-1.5">
         <FieldLabel>Описание</FieldLabel>
         <textarea
@@ -313,6 +388,32 @@ function SpotForm({
           maxLength={200}
         />
       </label>
+
+      {isAdmin && (
+        <div className="flex flex-col gap-3 rounded-lg bg-secondary/30 p-4">
+          <label className="flex items-center gap-2 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={hasApprovedName}
+              onChange={(e) => setHasApprovedName(e.target.checked)}
+              className="size-4 rounded border-none bg-secondary text-primary focus:ring-0 focus:ring-offset-0"
+            />
+            <span className="text-xs font-mono uppercase tracking-widest text-foreground">Одобрить спот</span>
+          </label>
+          {hasApprovedName && (
+            <label className="flex flex-col gap-1.5">
+              <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Имя админа / создателя</span>
+              <input
+                className={inputClass}
+                value={approvedName}
+                onChange={(e) => setApprovedName(e.target.value)}
+                placeholder="Имя для отображения снизу"
+                maxLength={100}
+              />
+            </label>
+          )}
+        </div>
+      )}
 
       <div className="flex flex-col gap-2">
         <FieldLabel>Фотографии (до 3)</FieldLabel>
@@ -600,6 +701,30 @@ function SpotDetails({
           </div>
         </div>
         <div className="flex flex-col gap-0.5">
+          <FieldLabel>Опасность</FieldLabel>
+          <div className="flex gap-1" aria-label={`Опасность ${spot.dangerLevel || 1} из 5`}>
+            {[1, 2, 3, 4, 5].map((d) => {
+              const currentLvl = spot.dangerLevel || 1
+              return (
+                <span
+                  key={d}
+                  className={cn(
+                    'h-2 w-5 rounded-sm',
+                    d <= currentLvl
+                      ? currentLvl >= 4
+                        ? 'bg-red-500'
+                        : currentLvl === 3
+                          ? 'bg-amber-500'
+                          : 'bg-emerald-500'
+                      : 'bg-muted'
+                  )}
+                  aria-hidden="true"
+                />
+              )
+            })}
+          </div>
+        </div>
+        <div className="flex flex-col gap-0.5">
           <FieldLabel>Покрытие</FieldLabel>
           <span className="text-sm">{surfaces}</span>
         </div>
@@ -610,12 +735,25 @@ function SpotDetails({
           </span>
         </div>
         <div className="flex flex-col gap-0.5">
+          <FieldLabel>Износ / Состояние</FieldLabel>
+          <span className="text-sm font-semibold text-foreground">
+            {getWearLevelLabel(spot.wearLevel || '3')}
+          </span>
+        </div>
+        <div className="flex flex-col gap-0.5">
           <FieldLabel>Условия</FieldLabel>
           <span className="text-sm">
             {[spot.lighting && 'свет ночью', spot.covered && 'под крышей'].filter(Boolean).join(', ') || '—'}
           </span>
         </div>
       </div>
+
+      {spot.dangerDescription && (
+        <div className="rounded-lg bg-red-500/10 p-3 text-xs leading-relaxed text-red-400 border border-red-500/10">
+          <strong className="font-mono uppercase tracking-widest text-[9px] block mb-1">Сведения об опасности:</strong>
+          {spot.dangerDescription}
+        </div>
+      )}
 
       {spot.description && <p className="text-sm leading-relaxed text-muted-foreground">{spot.description}</p>}
 
@@ -629,9 +767,19 @@ function SpotDetails({
         </div>
       )}
 
-      <p className="font-mono text-xs text-muted-foreground">
-        {spot.authorName ? `Добавил: ${spot.authorName}` : 'Автор неизвестен'}
-      </p>
+      <div className="flex flex-col gap-1">
+        <p className="font-mono text-xs text-muted-foreground">
+          {spot.authorName ? `Добавил: ${spot.authorName}` : 'Автор неизвестен'}
+        </p>
+        {spot.approvedName && (
+          <p className="font-mono text-xs text-primary font-bold flex items-center gap-1.5">
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" className="shrink-0 text-primary">
+              <path d="M13.5 4.5l-7 7-3.5-3.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            <span>Одобрено: {spot.approvedName}</span>
+          </p>
+        )}
+      </div>
 
       <div className="flex gap-2">
         {isOwner ? (
@@ -794,6 +942,7 @@ export default function SpotPanel({
             point={{ lat: spot.lat, lng: spot.lng }}
             initial={spot}
             saving={saving}
+            isAdmin={isAdmin}
             onTypeChange={onTypeChange}
             onSubmit={onSubmit}
             onCancel={onClose}
@@ -803,6 +952,7 @@ export default function SpotPanel({
             key={formKey}
             point={draft}
             saving={saving}
+            isAdmin={isAdmin}
             onTypeChange={onTypeChange}
             onSubmit={onSubmit}
             onCancel={onClose}

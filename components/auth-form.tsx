@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -10,6 +10,32 @@ import { signUpWithVerification, verifyOtpCode } from '@/app/actions/spots'
 
 const inputClass =
   'w-full rounded-lg bg-secondary px-3.5 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/60'
+
+function TelegramWidget() {
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const script = document.createElement('script')
+    script.src = 'https://telegram.org/js/telegram-widget.js?22'
+    script.async = true
+    script.setAttribute('data-telegram-login', 'spotard_bot')
+    script.setAttribute('data-size', 'large')
+    script.setAttribute('data-userpic', 'false')
+    script.setAttribute('data-auth-url', '/api/auth/telegram')
+    script.setAttribute('data-request-access', 'write')
+    
+    if (ref.current) {
+      ref.current.appendChild(script)
+    }
+    return () => {
+      if (ref.current) {
+        ref.current.innerHTML = ''
+      }
+    }
+  }, [])
+
+  return <div ref={ref} className="flex justify-center w-full min-h-[40px] items-center my-2" />
+}
 
 export function AuthForm({ mode }: { mode: 'sign-in' | 'sign-up' }) {
   const router = useRouter()
@@ -244,6 +270,8 @@ export function AuthForm({ mode }: { mode: 'sign-in' | 'sign-up' }) {
               </svg>
               Войти через Google
             </Button>
+
+            <TelegramWidget />
 
             <p className="mt-6 text-center text-sm text-muted-foreground">
               {isSignUp ? 'Уже есть аккаунт? ' : 'Нет аккаунта? '}

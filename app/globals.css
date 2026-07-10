@@ -176,3 +176,37 @@
     box-shadow: 0 2px 8px oklch(0 0 0 / 50%), 0 0 0 10px oklch(0.88 0.23 130 / 0%);
   }
 }
+
+.user-dot {
+  width: 14px;
+  height: 14px;
+  background-color: oklch(0.6 0.18 250);
+  border-radius: 50%;
+  border: 2px solid white;
+  position: relative;
+  box-shadow: 0 0 8px oklch(0.6 0.18 250 / 80%);
+}
+
+.user-pulse {
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid oklch(0.6 0.18 250);
+  animation: user-pulse-anim 2s infinite ease-out;
+  opacity: 0;
+  pointer-events: none;
+}
+
+@keyframes user-pulse-anim {
+  0% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(2.8);
+    opacity: 0;
+  }
+}

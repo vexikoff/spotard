@@ -26,13 +26,12 @@ export function getUserRole(
   name?: string | null | undefined
 ): UserRole {
   const e = (email ?? '').toLowerCase()
-  const n = (name ?? '').toLowerCase()
 
-  if (ADMIN_EMAILS.includes(e) || ADMIN_NAMES.includes(name ?? '') || ADMIN_NAMES.includes(n)) {
+  if (ADMIN_EMAILS.includes(e)) {
     return 'admin'
   }
 
-  if (MODERATOR_EMAILS.includes(e) || MODERATOR_NAMES.includes(name ?? '') || MODERATOR_NAMES.includes(n)) {
+  if (MODERATOR_EMAILS.includes(e)) {
     return 'moderator'
   }
 
@@ -143,4 +142,19 @@ export function getSecurity(value: string) {
 
 export function getSurfaceLabel(value: string) {
   return SURFACES.find((s) => s.value === value)?.label ?? value
+}
+
+export const WEAR_LEVELS = [
+  { value: '1', label: '1' },
+  { value: '2', label: '2' },
+  { value: '3', label: '3' },
+  { value: '4', label: '4' },
+  { value: '5', label: '5' },
+  { value: 'under_construction', label: 'Стройка' },
+  { value: 'gone', label: 'Уже нету' },
+  { value: 'renovation', label: 'Реконструкция' },
+] as const
+
+export function getWearLevelLabel(value: string) {
+  return WEAR_LEVELS.find((w) => w.value === value)?.label ?? value
 }

@@ -9,6 +9,7 @@ import { useRouter } from 'next/navigation'
 import useSWR from 'swr'
 import {
   approveReportAndDeleteSpot,
+  changeUsername,
   createSpot,
   deleteMessage,
   deleteSpot,
@@ -77,6 +78,29 @@ export default function MapApp({ initialSpots }: { initialSpots: Spot[] }) {
   const [legendOpen, setLegendOpen] = useState(false)
   const [statsOpen, setStatsOpen] = useState(false)
   const [statsData, setStatsData] = useState<{ online: number; spots: number; users: number } | null>(null)
+
+  const [newName, setNewName] = useState('')
+  const [nameUpdating, setNameUpdating] = useState(false)
+  const [nameError, setNameError] = useState<string | null>(null)
+  const [privacyOpen, setPrivacyOpen] = useState(false)
+  const [termsOpen, setTermsOpen] = useState(false)
+
+  useEffect(() => {
+    if (session?.user?.name) {
+      setNewName(session.user.name)
+    }
+  }, [session?.user?.name])
+
+  const [onboardingOpen, setOnboardingOpen] = useState(false)
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const visited = localStorage.getItem('spotard_visited')
+      if (!visited) {
+        setOnboardingOpen(true)
+      }
+    }
+  }, [])
 
   const [clientId] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -223,18 +247,24 @@ export default function MapApp({ initialSpots }: { initialSpots: Spot[] }) {
   const [settingsOpen, setSettingsOpen] = useState(false)
 
   // Geolocation (моё местоположение)
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null)
+
   function locateMe() {
     if (!navigator.geolocation) {
       fallbackToIpLocation()
       return
     }
     navigator.geolocation.getCurrentPosition(
-      (pos) => setFlyTarget({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      (pos) => {
+        const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude }
+        setUserLocation(coords)
+        setFlyTarget(coords)
+      },
       () => {
         fallbackToIpLocation()
       },
       {
-        enableHighAccuracy: false,
+        enableHighAccuracy: true,
         timeout: 5000,
         maximumAge: 600000,
       }
@@ -245,7 +275,8 @@ export default function MapApp({ initialSpots }: { initialSpots: Spot[] }) {
     try {
       const loc = await getIpLocation()
       if (loc && typeof loc.lat === 'number' && typeof loc.lng === 'number') {
-        setFlyTarget({ lat: loc.lat, lng: loc.lng })
+        setUserLocation(loc)
+        setFlyTarget(loc)
       } else {
         flashNotice('Не удалось определить местоположение')
       }
@@ -408,6 +439,7 @@ export default function MapApp({ initialSpots }: { initialSpots: Spot[] }) {
         draftType={draftType}
         flyTarget={flyTarget}
         mapStyle={mapStyle}
+        userLocation={userLocation}
         onMapClick={handleMapClick}
         onSpotClick={handleSpotClick}
         onClusterClick={handleClusterClick}
@@ -659,6 +691,24 @@ export default function MapApp({ initialSpots }: { initialSpots: Spot[] }) {
               )}
             </button>
           )}
+
+          {/* Admin: statistics on mobile */}
+          {isAdmin && (
+            <button
+              onClick={() => {
+                setStatsOpen(!statsOpen)
+                setReportsOpen(false)
+                setSettingsOpen(false)
+              }}
+              aria-expanded={statsOpen}
+              className={cn(
+                'flex items-center gap-1.5 rounded-xl px-3.5 py-2.5 font-mono text-xs font-bold shadow-2xl backdrop-blur-md transition-colors',
+                statsOpen ? 'bg-white text-black' : 'bg-black/85 text-white/80 hover:text-white',
+              )}
+            >
+              Стата
+            </button>
+          )}
         </div>
       </header>
 
@@ -838,6 +888,57 @@ export default function MapApp({ initialSpots }: { initialSpots: Spot[] }) {
             >
               Сбросить всё ({filteredSpots.length}/{spots.length} на карте)
             </button>
+          </div>
+
+          {session?.user && (
+            <div className="flex flex-col gap-1.5 border-t border-border/20 pt-3">
+              <span className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase">Сменить ник</span>
+              <div className="flex gap-2">
+                <input
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  placeholder="Новый ник"
+                  maxLength={40}
+                  className="flex-1 rounded-lg bg-secondary px-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none"
+                />
+                <button
+                  disabled={nameUpdating || !newName.trim() || newName === session.user.name}
+                  onClick={async () => {
+                    setNameUpdating(true)
+                    setNameError(null)
+                    try {
+                      const res = await changeUsername(newName)
+                      if (res.success) {
+                        window.location.reload()
+                      } else {
+                        setNameError(res.error || 'Ошибка')
+                      }
+                    } catch (err: any) {
+                      setNameError(err.message || 'Ошибка')
+                    } finally {
+                      setNameUpdating(false)
+                    }
+                  }}
+                  className="rounded-lg bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground transition-colors hover:opacity-90 disabled:opacity-50"
+                >
+                  {nameUpdating ? '...' : 'ОК'}
+                </button>
+              </div>
+              {nameError && <p className="text-[10px] font-mono text-destructive">{nameError}</p>}
+            </div>
+          )}
+
+          <div className="flex flex-col gap-1.5 border-t border-border/20 pt-3">
+            <div className="flex justify-center gap-4 font-mono text-[9px] text-muted-foreground">
+              <button onClick={() => setPrivacyOpen(true)} className="hover:underline">Политика</button>
+              <button onClick={() => setTermsOpen(true)} className="hover:underline">Условия</button>
+            </div>
+            <div className="text-center font-mono text-[8px] text-muted-foreground/60 mt-1">
+              Создатели:{" "}
+              <a href="https://github.com/vexikoff" target="_blank" rel="noreferrer" className="hover:underline text-muted-foreground font-bold">vexikoff</a>
+              {", "}
+              <a href="https://github.com/clausmaslov" target="_blank" rel="noreferrer" className="hover:underline text-muted-foreground font-bold">claus_maslov</a>
+            </div>
           </div>
         </div>
       )}
@@ -1037,6 +1138,119 @@ export default function MapApp({ initialSpots }: { initialSpots: Spot[] }) {
           onClose={closePanel}
           onLike={handleLike}
         />
+      )}
+
+      {/* Onboarding Modal */}
+      {onboardingOpen && (
+        <div className="pointer-events-auto fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="flex max-w-sm flex-col gap-5 rounded-2xl bg-card p-6 shadow-2xl border border-border/10">
+            <div className="text-center">
+              <h3 className="font-display text-lg font-bold text-primary lowercase tracking-tight">spotard</h3>
+              <p className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground mt-1">Твой гид по спотам</p>
+            </div>
+            <div className="flex flex-col gap-3.5 text-xs text-muted-foreground font-mono leading-relaxed">
+              <p className="text-sm text-foreground text-center font-sans">
+                Интерактивная карта спотов для скейтборда, BMX, самоката и роликов.
+              </p>
+              <div className="flex flex-col gap-2.5 bg-secondary/35 p-3.5 rounded-xl border border-border/5">
+                <div className="flex gap-2">
+                  <span>🗺️</span>
+                  <span>Находи лучшие места в своем городе</span>
+                </div>
+                <div className="flex gap-2">
+                  <span>📍</span>
+                  <span>Добавляй новые споты кликом по карте</span>
+                </div>
+                <div className="flex gap-2">
+                  <span>💬</span>
+                  <span>Общайся в реальном времени в чате</span>
+                </div>
+                <div className="flex gap-2">
+                  <span>⚠️</span>
+                  <span>Следи за состоянием и опасностью спотов</span>
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                localStorage.setItem('spotard_visited', 'true')
+                setOnboardingOpen(false)
+              }}
+              className="w-full rounded-xl bg-primary py-3 text-center text-xs font-bold font-mono uppercase tracking-widest text-primary-foreground transition-opacity hover:opacity-90"
+            >
+              Погнали!
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Privacy Policy Modal */}
+      {privacyOpen && (
+        <div className="pointer-events-auto fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="flex max-w-md flex-col gap-4 rounded-2xl bg-card p-6 shadow-2xl border border-border/10">
+            <div className="flex items-center justify-between border-b border-border/10 pb-2">
+              <h3 className="font-display text-sm font-semibold">Политика конфиденциальности</h3>
+              <button onClick={() => setPrivacyOpen(false)} className="text-muted-foreground hover:text-foreground">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                  <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                </svg>
+              </button>
+            </div>
+            <div className="max-h-60 overflow-y-auto pr-1 text-xs leading-relaxed text-muted-foreground flex flex-col gap-3 font-mono">
+              <p>
+                1. Мы собираем ваш email исключительно для регистрации, входа и безопасности вашего аккаунта.
+              </p>
+              <p>
+                2. Ваши личные геоданные не передаются третьим лицам. Местоположение спотов, которые вы добавляете, становится публичным для всех пользователей.
+              </p>
+              <p>
+                3. Мы используем файлы cookie для поддержания сессии вашего входа.
+              </p>
+            </div>
+            <button
+              onClick={() => setPrivacyOpen(false)}
+              className="w-full rounded-xl bg-secondary py-2.5 text-center text-xs font-bold font-mono uppercase text-foreground hover:bg-secondary/80 transition-colors"
+            >
+              Закрыть
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Terms of Use Modal */}
+      {termsOpen && (
+        <div className="pointer-events-auto fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="flex max-w-md flex-col gap-4 rounded-2xl bg-card p-6 shadow-2xl border border-border/10">
+            <div className="flex items-center justify-between border-b border-border/10 pb-2">
+              <h3 className="font-display text-sm font-semibold">Условия использования</h3>
+              <button onClick={() => setTermsOpen(false)} className="text-muted-foreground hover:text-foreground">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                  <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                </svg>
+              </button>
+            </div>
+            <div className="max-h-60 overflow-y-auto pr-1 text-xs leading-relaxed text-muted-foreground flex flex-col gap-3 font-mono">
+              <p>
+                1. Запрещено добавлять несуществующие (фейковые) споты, дубликаты или рекламу.
+              </p>
+              <p>
+                2. Запрещено спамить или оскорблять участников в общем чате.
+              </p>
+              <p>
+                3. Администрация оставляет за собой право модерировать споты, удалять некорректный контент и блокировать учетные записи нарушителей.
+              </p>
+              <p>
+                4. Пожалуйста, будьте осторожны при посещении спотов и соблюдайте правила безопасности.
+              </p>
+            </div>
+            <button
+              onClick={() => setTermsOpen(false)}
+              className="w-full rounded-xl bg-secondary py-2.5 text-center text-xs font-bold font-mono uppercase text-foreground hover:bg-secondary/80 transition-colors"
+            >
+              Закрыть
+            </button>
+          </div>
+        </div>
       )}
     </main>
   )

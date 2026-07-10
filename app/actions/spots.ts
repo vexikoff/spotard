@@ -22,6 +22,10 @@ export type SpotInput = {
   description: string
   tags: string
   images?: string
+  dangerLevel?: number
+  dangerDescription?: string
+  wearLevel?: string
+  approvedName?: string | null
 }
 
 const SPOT_TYPES = [
@@ -67,10 +71,54 @@ function isStaff(user: { email: string; name?: string | null }) {
 const SURFACES = ['concrete', 'asphalt', 'wood', 'metal', 'marble', 'brick', 'dirt']
 const SECURITY = ['chill', 'medium', 'strict']
 
-async function getSessionUser() {
+// Global cooldowns tracker in memory
+type CooldownTracker = {
+  lastChat: number
+  lastSpot: number
+  lastReport: number
+}
+const globalRef = global as any
+if (!globalRef.actionCooldowns) {
+  globalRef.actionCooldowns = new Map<string, CooldownTracker>()
+}
+const cooldowns = globalRef.actionCooldowns as Map<string, CooldownTracker>
+
+function checkCooldown(userId: string, action: 'chat' | 'spot' | 'report', limitMs: number) {
+  const now = Date.now()
+  let userCd = cooldowns.get(userId)
+  if (!userCd) {
+    userCd = { lastChat: 0, lastSpot: 0, lastReport: 0 }
+    cooldowns.set(userId, userCd)
+  }
+
+  let lastTime = 0
+  if (action === 'chat') lastTime = userCd.lastChat
+  else if (action === 'spot') lastTime = userCd.lastSpot
+  else if (action === 'report') lastTime = userCd.lastReport
+
+  if (now - lastTime < limitMs) {
+    const waitSec = Math.ceil((limitMs - (now - lastTime)) / 1000)
+    throw new Error(`Подожди ещё ${waitSec} сек перед этим действием`)
+  }
+
+  // Update time
+  if (action === 'chat') userCd.lastChat = now
+  else if (action === 'spot') userCd.lastSpot = now
+  else if (action === 'report') userCd.lastReport = now
+}
+
+async function ensureMigrations() {
   try {
     await db.execute(sql`ALTER TABLE "user" ADD COLUMN IF NOT EXISTS "banned" BOOLEAN NOT NULL DEFAULT FALSE;`)
-  } catch (err) {}
+    await db.execute(sql`ALTER TABLE "spots" ADD COLUMN IF NOT EXISTS "danger_level" INTEGER NOT NULL DEFAULT 1;`)
+    await db.execute(sql`ALTER TABLE "spots" ADD COLUMN IF NOT EXISTS "danger_description" TEXT NOT NULL DEFAULT '';`)
+    await db.execute(sql`ALTER TABLE "spots" ADD COLUMN IF NOT EXISTS "wear_level" TEXT NOT NULL DEFAULT '3';`)
+    await db.execute(sql`ALTER TABLE "spots" ADD COLUMN IF NOT EXISTS "approved_name" TEXT;`)
+  } catch (_) {}
+}
+
+async function getSessionUser() {
+  await ensureMigrations()
 
   const session = await auth.api.getSession({ headers: await headers() })
   if (!session?.user) throw new Error('Войди в аккаунт, чтобы делать это')
@@ -83,12 +131,17 @@ async function getSessionUser() {
   return session.user
 }
 
-function validate(input: SpotInput): SpotInput {
+function validate(input: SpotInput) {
   const name = input.name.trim().slice(0, 80)
-  if (!name) throw new Error('Name is required')
+  if (!name) throw new Error('Дай споту название')
   if (typeof input.lat !== 'number' || typeof input.lng !== 'number' || Number.isNaN(input.lat) || Number.isNaN(input.lng)) {
-    throw new Error('Invalid coordinates')
+    throw new Error('Некорректные координаты')
   }
+
+  // Wear level choices
+  const validWearLevels = ['1', '2', '3', '4', '5', 'under_construction', 'gone', 'renovation']
+  const wear = (input.wearLevel && validWearLevels.includes(input.wearLevel)) ? input.wearLevel : '3'
+
   return {
     name,
     lat: input.lat,
@@ -114,6 +167,10 @@ function validate(input: SpotInput): SpotInput {
     description: input.description.trim().slice(0, 1000),
     tags: input.tags.trim().slice(0, 200),
     images: input.images ? input.images : '[]',
+    dangerLevel: Math.min(5, Math.max(1, Math.round(input.dangerLevel || 1))),
+    dangerDescription: (input.dangerDescription || '').trim().slice(0, 1000),
+    wearLevel: wear,
+    approvedName: input.approvedName ? input.approvedName.trim().slice(0, 100) : null,
   }
 }
 
@@ -124,7 +181,14 @@ export async function getSpots(): Promise<Spot[]> {
 
 export async function createSpot(input: SpotInput): Promise<Spot> {
   const sessionUser = await getSessionUser()
+  checkCooldown(sessionUser.id, 'spot', 10000)
   const data = validate(input)
+
+  // Only admins can set approvedName on creation
+  if (!isAdmin(sessionUser)) {
+    data.approvedName = null
+  }
+
   const [created] = await db
     .insert(spots)
     .values({ ...data, userId: sessionUser.id, authorName: sessionUser.name })
@@ -138,10 +202,17 @@ export async function updateSpot(id: number, input: SpotInput): Promise<Spot> {
   const data = validate(input)
   const [existing] = await db.select().from(spots).where(eq(spots.id, id))
   if (!existing) throw new Error('Спот не найден')
-  // Only the owner or the admin can edit a spot. Legacy spots (no owner) get claimed by the editor.
+
+  // Only the owner or the admin can edit a spot
   if (existing.userId && existing.userId !== sessionUser.id && !isAdmin(sessionUser)) {
     throw new Error('Это чужой спот — редактировать может только автор')
   }
+
+  // Only admins can modify approvedName; others keep the existing value
+  if (!isAdmin(sessionUser)) {
+    data.approvedName = existing.approvedName
+  }
+
   const [updated] = await db
     .update(spots)
     .set({ ...data, userId: existing.userId ?? sessionUser.id, authorName: existing.userId ? existing.authorName : sessionUser.name })
@@ -167,6 +238,10 @@ export async function deleteSpot(id: number): Promise<void> {
 
 export async function reportSpot(spotId: number, reason: string): Promise<void> {
   const sessionUser = await getSessionUser()
+  if (getUserRole(sessionUser.email, sessionUser.name) === 'moderator') {
+    throw new Error('Модераторы не могут отправлять жалобы')
+  }
+  checkCooldown(sessionUser.id, 'report', 60000)
   const [existing] = await db.select().from(spots).where(eq(spots.id, spotId))
   if (!existing) throw new Error('Спот не найден')
   const cleanReason = reason.trim().slice(0, 500)
@@ -177,12 +252,16 @@ export async function reportSpot(spotId: number, reason: string): Promise<void> 
     .from(reports)
     .where(and(eq(reports.spotId, spotId), eq(reports.reporterId, sessionUser.id), eq(reports.status, 'open')))
   if (dup) throw new Error('Ты уже отправил жалобу на этот спот')
-  await db.insert(reports).values({
-    spotId,
-    reason: cleanReason,
-    reporterId: sessionUser.id,
-    reporterName: sessionUser.name,
-  })
+  const [created] = await db
+    .insert(reports)
+    .values({
+      spotId,
+      reason: cleanReason,
+      reporterId: sessionUser.id,
+      reporterName: sessionUser.name,
+    })
+    .returning()
+  await triggerPusher('spots', 'report_created', { ...created, spotName: existing.name })
 }
 
 export type ReportWithSpot = Report & { spotName: string | null }
@@ -292,6 +371,7 @@ export async function getMessages(): Promise<Message[]> {
 
 export async function sendMessage(text: string): Promise<void> {
   const sessionUser = await getSessionUser()
+  checkCooldown(sessionUser.id, 'chat', 5000)
   const clean = text.trim().slice(0, 400)
   if (!clean) throw new Error('Пустое сообщение')
   const [created] = await db
@@ -380,9 +460,6 @@ export async function getIpLocation(): Promise<{ lat: number; lng: number } | nu
   return null
 }
 
-const globalRef = global as unknown as {
-  onlineTracker?: Map<string, number>
-}
 if (!globalRef.onlineTracker) {
   globalRef.onlineTracker = new Map()
 }
@@ -392,11 +469,7 @@ export async function pingOnline(clientId: string): Promise<{
   spots: number
   users: number
 }> {
-  try {
-    await db.execute(sql`ALTER TABLE "user" ADD COLUMN IF NOT EXISTS "banned" BOOLEAN NOT NULL DEFAULT FALSE;`)
-  } catch (err) {
-    // Ignore migration error if already migrated
-  }
+  await ensureMigrations()
 
   const now = Date.now()
   const tracker = globalRef.onlineTracker!
@@ -421,9 +494,7 @@ export async function pingOnline(clientId: string): Promise<{
 }
 
 export async function checkUsernameExists(name: string): Promise<boolean> {
-  try {
-    await db.execute(sql`ALTER TABLE "user" ADD COLUMN IF NOT EXISTS "banned" BOOLEAN NOT NULL DEFAULT FALSE;`)
-  } catch (err) {}
+  await ensureMigrations()
 
   const clean = name.trim().toLowerCase()
   if (!clean) return false
@@ -506,10 +577,8 @@ export async function signUpWithVerification(input: {
 }): Promise<{ success: boolean; error?: string }> {
   const { email, password, name } = input
 
-  // 1. Migrate banned column if needed
-  try {
-    await db.execute(sql`ALTER TABLE "user" ADD COLUMN IF NOT EXISTS "banned" BOOLEAN NOT NULL DEFAULT FALSE;`)
-  } catch (_) {}
+  // 1. Migrate tables if needed
+  await ensureMigrations()
 
   // 2. Check if name is unique
   try {
@@ -592,5 +661,30 @@ export async function signUpWithVerification(input: {
   }
 
   return { success: true }
+}
+
+export async function changeUsername(newName: string): Promise<{ success: boolean; error?: string }> {
+  const sessionUser = await getSessionUser()
+  const clean = newName.trim().slice(0, 40)
+  if (!clean) {
+    return { success: false, error: 'Ник не может быть пустым' }
+  }
+
+  // Check if name is already taken
+  const exists = await checkUsernameExists(clean)
+  if (exists && clean.toLowerCase() !== sessionUser.name.toLowerCase()) {
+    return { success: false, error: 'Этот ник уже занят, выбери другой' }
+  }
+
+  try {
+    await db.update(user).set({ name: clean }).where(eq(user.id, sessionUser.id))
+    // Propagate changes to other tables
+    await db.update(spots).set({ authorName: clean }).where(eq(spots.userId, sessionUser.id))
+    await db.update(comments).set({ authorName: clean }).where(eq(comments.userId, sessionUser.id))
+    await db.update(messages).set({ authorName: clean }).where(eq(messages.userId, sessionUser.id))
+    return { success: true }
+  } catch (err: any) {
+    return { success: false, error: 'Ошибка обновления: ' + err.message }
+  }
 }
 

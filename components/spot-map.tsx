@@ -22,7 +22,36 @@ function makeClusterIcon(count: number) {
 
 // Grid-based clustering: cell size shrinks as zoom grows
 function clusterSpots(spots: Spot[], zoom: number): SpotCluster[] {
-  if (zoom >= 17) return spots.map((s) => ({ lat: s.lat, lng: s.lng, spots: [s] }))
+  if (zoom >= 17) {
+    const clusters: SpotCluster[] = []
+    const visited = new Set<number>()
+
+    for (let i = 0; i < spots.length; i++) {
+      if (visited.has(spots[i].id)) continue
+      const currentSpot = spots[i]
+      const group = [currentSpot]
+      visited.add(currentSpot.id)
+
+      for (let j = i + 1; j < spots.length; j++) {
+        if (visited.has(spots[j].id)) continue
+        const otherSpot = spots[j]
+        const latDiff = Math.abs(currentSpot.lat - otherSpot.lat)
+        const lngDiff = Math.abs(currentSpot.lng - otherSpot.lng)
+        if (latDiff < 0.00015 && lngDiff < 0.00015) {
+          group.push(otherSpot)
+          visited.add(otherSpot.id)
+        }
+      }
+
+      clusters.push({
+        lat: group.reduce((a, s) => a + s.lat, 0) / group.length,
+        lng: group.reduce((a, s) => a + s.lng, 0) / group.length,
+        spots: group,
+      })
+    }
+    return clusters
+  }
+
   const cell = 160 / Math.pow(2, zoom) // degrees per cluster cell
   const buckets = new Map<string, Spot[]>()
   for (const s of spots) {
@@ -89,12 +118,67 @@ function FlyTo({ target }: { target: DraftPoint | null }) {
   return null
 }
 
+function SpotMarkers({
+  clusters,
+  draft,
+  draftIcon,
+  onSpotClick,
+  onClusterClick,
+}: {
+  clusters: SpotCluster[]
+  draft: DraftPoint | null
+  draftIcon: L.DivIcon
+  onSpotClick: (spot: Spot) => void
+  onClusterClick: (cluster: SpotCluster) => void
+}) {
+  const map = useMap()
+
+  return (
+    <>
+      {clusters.map((c) =>
+        c.spots.length === 1 ? (
+          <Marker
+            key={`s-${c.spots[0].id}`}
+            position={[c.spots[0].lat, c.spots[0].lng]}
+            icon={makeSpotIcon(c.spots[0].spotType)}
+            eventHandlers={{
+              click: (e) => {
+                L.DomEvent.stopPropagation(e as unknown as Event)
+                onSpotClick(c.spots[0])
+              },
+            }}
+          />
+        ) : (
+          <Marker
+            key={`c-${c.lat}-${c.lng}-${c.spots.length}`}
+            position={[c.lat, c.lng]}
+            icon={makeClusterIcon(c.spots.length)}
+            eventHandlers={{
+              click: (e) => {
+                L.DomEvent.stopPropagation(e as unknown as Event)
+                const currentZoom = map.getZoom()
+                if (currentZoom < 17) {
+                  map.setView([c.lat, c.lng], Math.min(currentZoom + 2, 17))
+                } else {
+                  onClusterClick(c)
+                }
+              },
+            }}
+          />
+        ),
+      )}
+      {draft && <Marker position={[draft.lat, draft.lng]} icon={draftIcon} />}
+    </>
+  )
+}
+
 export default function SpotMap({
   spots,
   draft,
   draftType,
   flyTarget,
   mapStyle,
+  userLocation,
   onMapClick,
   onSpotClick,
   onClusterClick,
@@ -104,11 +188,21 @@ export default function SpotMap({
   draftType: string
   flyTarget: DraftPoint | null
   mapStyle: string
+  userLocation: { lat: number; lng: number } | null
   onMapClick: (p: DraftPoint) => void
   onSpotClick: (spot: Spot) => void
   onClusterClick: (cluster: SpotCluster) => void
 }) {
   const draftIcon = useMemo(() => makeSpotIcon(draftType, true), [draftType])
+  const userLocationIcon = useMemo(() => {
+    return L.divIcon({
+      className: 'user-location-marker',
+      html: '<div class="user-dot"><span class="user-pulse"></span></div>',
+      iconSize: [20, 20],
+      iconAnchor: [10, 10],
+    })
+  }, [])
+
   const style = getMapStyle(mapStyle)
   const [zoom, setZoom] = useState(3)
   const clusters = useMemo(() => clusterSpots(spots, zoom), [spots, zoom])
@@ -157,34 +251,16 @@ export default function SpotMap({
       <ClickHandler onMapClick={onMapClick} />
       <FlyTo target={flyTarget} />
       <ZoomTracker onZoom={setZoom} />
-      {clusters.map((c) =>
-        c.spots.length === 1 ? (
-          <Marker
-            key={`s-${c.spots[0].id}`}
-            position={[c.spots[0].lat, c.spots[0].lng]}
-            icon={makeSpotIcon(c.spots[0].spotType)}
-            eventHandlers={{
-              click: (e) => {
-                L.DomEvent.stopPropagation(e as unknown as Event)
-                onSpotClick(c.spots[0])
-              },
-            }}
-          />
-        ) : (
-          <Marker
-            key={`c-${c.lat}-${c.lng}-${c.spots.length}`}
-            position={[c.lat, c.lng]}
-            icon={makeClusterIcon(c.spots.length)}
-            eventHandlers={{
-              click: (e) => {
-                L.DomEvent.stopPropagation(e as unknown as Event)
-                onClusterClick(c)
-              },
-            }}
-          />
-        ),
+      <SpotMarkers
+        clusters={clusters}
+        draft={draft}
+        draftIcon={draftIcon}
+        onSpotClick={onSpotClick}
+        onClusterClick={onClusterClick}
+      />
+      {userLocation && (
+        <Marker position={[userLocation.lat, userLocation.lng]} icon={userLocationIcon} />
       )}
-      {draft && <Marker position={[draft.lat, draft.lng]} icon={draftIcon} />}
     </MapContainer>
   )
 }
