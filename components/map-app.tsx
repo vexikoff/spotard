@@ -102,6 +102,28 @@ export default function MapApp({ initialSpots }: { initialSpots: Spot[] }) {
     }
   }, [])
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const tg = (window as any).Telegram?.WebApp
+    if (tg && tg.initData && !session?.user) {
+      async function autoLogin() {
+        try {
+          const res = await fetch('/api/auth/telegram/webapp', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ initData: tg.initData }),
+          })
+          if (res.ok) {
+            window.location.reload()
+          }
+        } catch (e) {
+          console.error('Telegram WebApp automatic login failed:', e)
+        }
+      }
+      autoLogin()
+    }
+  }, [session])
+
   const [clientId] = useState(() => {
     if (typeof window !== 'undefined') {
       let id = sessionStorage.getItem('spotard_client_id')

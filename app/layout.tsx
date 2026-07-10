@@ -76,6 +76,7 @@ export default function RootLayout({
             }),
           }}
         />
+        <script src="https://telegram.org/js/telegram-web-app.js" defer />
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
     </html>
