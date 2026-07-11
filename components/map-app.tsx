@@ -951,9 +951,9 @@ export default function MapApp({ initialSpots }: { initialSpots: Spot[] }) {
           )}
 
           <div className="flex flex-col gap-1.5 border-t border-border/20 pt-3">
-            <div className="flex justify-center gap-4 font-mono text-[9px] text-muted-foreground">
-              <button onClick={() => setPrivacyOpen(true)} className="hover:underline">Политика</button>
-              <button onClick={() => setTermsOpen(true)} className="hover:underline">Условия</button>
+            <div className="flex flex-col items-center gap-1 font-mono text-[9.5px] text-muted-foreground">
+              <button onClick={() => setPrivacyOpen(true)} className="hover:underline">Политика конфиденциальности</button>
+              <button onClick={() => setTermsOpen(true)} className="hover:underline">Условия использования</button>
             </div>
             <div className="text-center font-mono text-[8px] text-muted-foreground/60 mt-1">
               Создатели:{" "}
@@ -1231,15 +1231,18 @@ export default function MapApp({ initialSpots }: { initialSpots: Spot[] }) {
                 </svg>
               </button>
             </div>
-            <div className="max-h-60 overflow-y-auto pr-1 text-xs leading-relaxed text-muted-foreground flex flex-col gap-3 font-mono">
+            <div className="max-h-80 overflow-y-auto pr-1 text-xs leading-relaxed text-muted-foreground flex flex-col gap-3.5 font-mono">
               <p>
-                1. Мы собираем ваш email исключительно для регистрации, входа и безопасности вашего аккаунта.
+                1. Сбор данных: мы запрашиваем ваш адрес электронной почты исключительно в целях создания аккаунта, аутентификации и обеспечения безопасности. Мы гарантируем конфиденциальность и обязуемся не передавать ваш email третьим лицам.
               </p>
               <p>
-                2. Ваши личные геоданные не передаются третьим лицам. Местоположение спотов, которые вы добавляете, становится публичным для всех пользователей.
+                2. Обработка геоданных: определение вашего текущего местоположения происходит локально на вашем устройстве. Координаты добавляемых вами спотов публикуются в общем доступе на интерактивной карте для всех посетителей проекта.
               </p>
               <p>
-                3. Мы используем файлы cookie для поддержания сессии вашего входа.
+                3. Файлы Cookie: для поддержания стабильной авторизационной сессии приложение использует технические файлы cookie.
+              </p>
+              <p>
+                4. Безопасность: мы применяем организационные и технические меры для предотвращения несанкционированного доступа к вашим персональным данным.
               </p>
             </div>
             <button
@@ -1264,18 +1267,18 @@ export default function MapApp({ initialSpots }: { initialSpots: Spot[] }) {
                 </svg>
               </button>
             </div>
-            <div className="max-h-60 overflow-y-auto pr-1 text-xs leading-relaxed text-muted-foreground flex flex-col gap-3 font-mono">
+            <div className="max-h-80 overflow-y-auto pr-1 text-xs leading-relaxed text-muted-foreground flex flex-col gap-3.5 font-mono">
               <p>
-                1. Запрещено добавлять несуществующие (фейковые) споты, дубликаты или рекламу.
+                1. Правила публикации контента: запрещено добавлять фейковые, дублирующие, рекламные споты или любой контент, нарушающий авторские права или действующее законодательство РФ.
               </p>
               <p>
-                2. Запрещено спамить или оскорблять участников в общем чате.
+                2. Поведение в сообществе: спам, оскорбления, нецензурная брань в чате или комментариях могут повлечь незамедлительное удаление контента и бессрочный бан аккаунта.
               </p>
               <p>
-                3. Администрация оставляет за собой право модерировать споты, удалять некорректный контент и блокировать учетные записи нарушителей.
+                3. Отказ от ответственности (Дисклеймер): Spotard является некоммерческим проектом, предоставляющим исключительно информационные услуги. Администрация не несет ответственности за техническое состояние спотов, присутствие охраны, а также за любые травмы, несчастные случаи или ущерб здоровью и имуществу, полученные пользователями при посещении локаций, указанных на карте. Все споты вы посещаете под свою личную ответственность на собственный страх и риск.
               </p>
               <p>
-                4. Пожалуйста, будьте осторожны при посещении спотов и соблюдайте правила безопасности.
+                4. Модерация: администрация оставляет за собой право по своему усмотрению и без объяснения причин изменять или удалять любой пользовательский контент.
               </p>
             </div>
             <button

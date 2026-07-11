@@ -31,8 +31,25 @@ try {
   })
 } catch (err) {}
 
+const socialProviders: any = {}
+
+if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+  socialProviders.google = {
+    clientId: process.env.GOOGLE_CLIENT_ID,
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+  }
+}
+
+if (process.env.YANDEX_ID && process.env.YANDEX_SECRET) {
+  socialProviders.yandex = {
+    clientId: process.env.YANDEX_ID,
+    clientSecret: process.env.YANDEX_SECRET,
+  }
+}
+
 export const auth = betterAuth({
   database: pool,
+  secret: process.env.BETTER_AUTH_SECRET || 'a-very-secure-default-secret-key-1234567890-xyz',
   baseURL:
     process.env.BETTER_AUTH_URL ??
     (process.env.VERCEL_PROJECT_PRODUCTION_URL
@@ -51,12 +68,7 @@ export const auth = betterAuth({
       return Math.floor(100000 + Math.random() * 900000).toString()
     },
   },
-  socialProviders: {
-    google: {
-      clientId: process.env.GOOGLE_CLIENT_ID || '',
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
-    },
-  },
+  socialProviders,
   trustedOrigins: [
     ...(process.env.NODE_ENV === 'development'
       ? ['http://localhost:3000', `http://localhost:${process.env.PORT ?? 3000}`]
