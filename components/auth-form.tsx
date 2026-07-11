@@ -270,12 +270,11 @@ export function AuthForm({ mode }: { mode: 'sign-in' | 'sign-up' }) {
             </div>
 
             <div className="flex flex-col gap-2 w-full">
-              <Button
+              <button
                 type="button"
-                variant="secondary"
                 disabled={loading}
                 onClick={handleGoogleSignIn}
-                className="w-full gap-3 py-3 text-[11px] font-mono uppercase tracking-wider bg-secondary/45 hover:bg-secondary/75 text-foreground transition-colors duration-200 border border-border/5 rounded-xl flex items-center justify-center"
+                className="w-full h-auto gap-3 py-3 text-[11px] font-mono uppercase tracking-wider bg-secondary/45 hover:bg-secondary/75 text-foreground transition-colors duration-200 border border-border/10 rounded-xl flex items-center justify-center"
               >
                 <svg className="size-4 shrink-0" viewBox="0 0 24 24" fill="none">
                   <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
@@ -284,37 +283,35 @@ export function AuthForm({ mode }: { mode: 'sign-in' | 'sign-up' }) {
                   <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" fill="#EA4335" />
                 </svg>
                 Войти через Google
-              </Button>
+              </button>
 
-              <Button
+              <button
                 type="button"
-                variant="secondary"
                 disabled={loading}
                 onClick={handleYandexSignIn}
-                className="w-full gap-3 py-3 text-[11px] font-mono uppercase tracking-wider bg-secondary/45 hover:bg-secondary/75 text-foreground transition-colors duration-200 border border-border/5 rounded-xl flex items-center justify-center"
+                className="w-full h-auto gap-3 py-3 text-[11px] font-mono uppercase tracking-wider bg-secondary/45 hover:bg-secondary/75 text-foreground transition-colors duration-200 border border-border/10 rounded-xl flex items-center justify-center"
               >
                 <svg className="size-4 shrink-0" viewBox="0 0 24 24" fill="none">
                   <rect width="24" height="24" rx="12" fill="#FC3F1D" />
-                  <path d="M15.3 17.5h-1.9L15 11h-1.9c-.9 0-1.6-.7-1.6-1.6V8.5h1.9v1.2c0 .2.2.4.4.4h1.1l1.6 7.4z M16 5.5h1.9l-1.5 6.5h-1.9L16 5.5z" fill="white" />
+                  <path d="M12.5 17h-1.5l1.3-6.5h-1.3c-.8 0-1.4-.6-1.4-1.4V8h1.4v.8c0 .2.2.3.3.3H12l1.3 5.4z M13.2 4.5H15l-1.3 5.2h-1.8l1.3-5.2z" fill="white" />
                 </svg>
                 Войти через Яндекс
-              </Button>
+              </button>
 
-              <Button
+              <button
                 type="button"
-                variant="secondary"
                 disabled={loading}
                 onClick={() => {
                   window.location.href = 'https://oauth.telegram.org/auth?bot_id=7434526922&origin=https://spotard.claus-maslov.space&embed=1&request_access=write&return_to=https://spotard.claus-maslov.space/api/auth/telegram'
                 }}
-                className="w-full gap-3 py-3 text-[11px] font-mono uppercase tracking-wider bg-secondary/45 hover:bg-secondary/75 text-foreground transition-colors duration-200 border border-border/5 rounded-xl flex items-center justify-center"
+                className="w-full h-auto gap-3 py-3 text-[11px] font-mono uppercase tracking-wider bg-secondary/45 hover:bg-secondary/75 text-foreground transition-colors duration-200 border border-border/10 rounded-xl flex items-center justify-center"
               >
                 <svg className="size-4 shrink-0" viewBox="0 0 24 24" fill="none">
                   <rect width="24" height="24" rx="12" fill="#229ED9" />
                   <path d="M17.5 8.2c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 00-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.74-.55 2.92-1.27 4.86-2.11 5.83-2.51 2.78-1.16 3.35-1.36 3.73-1.37.08 0 .27.02.39.12.1.08.13.19.14.28-.01.06-.01.24-.02.3z" fill="white" />
                 </svg>
                 Войти через Telegram
-              </Button>
+              </button>
             </div>
 
             <p className="mt-6 text-center text-sm text-muted-foreground">
