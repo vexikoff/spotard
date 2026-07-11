@@ -80,6 +80,12 @@ export const auth = betterAuth({
     expiresIn: 60 * 60 * 24 * 7, // 7 days
     updateAge: 60 * 60 * 24, // 1 day
   },
+  account: {
+    accountLinking: {
+      enabled: true,
+      trustedProviders: ['google', 'yandex'],
+    },
+  },
   ...(process.env.NODE_ENV === 'development'
     ? {
         advanced: {
