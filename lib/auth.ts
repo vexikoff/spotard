@@ -102,6 +102,7 @@ export const auth = betterAuth({
           authorizationUrl: 'https://oauth.yandex.ru/authorize',
           tokenUrl: 'https://oauth.yandex.ru/token',
           userInfoUrl: 'https://login.yandex.ru/info?format=json',
+          redirectURI: 'https://spotard.claus-maslov.space/yandex',
           getUserInfo: async (tokens) => {
             const res = await fetch('https://login.yandex.ru/info?format=json', {
               headers: {
