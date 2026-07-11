@@ -87,7 +87,7 @@ export function AuthForm({ mode }: { mode: 'sign-in' | 'sign-up' }) {
     try {
       await authClient.signIn.oauth2({
         providerId: 'yandex',
-        callbackURL: '/yandex',
+        callbackURL: '/',
       })
     } catch (err: any) {
       setLoading(false)
