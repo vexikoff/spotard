@@ -294,9 +294,10 @@ export function AuthForm({ mode }: { mode: 'sign-in' | 'sign-up' }) {
                 className="relative w-full h-11 px-4 rounded-xl border border-white/[0.06] bg-[#16171c] hover:bg-[#1e2027] hover:border-zinc-700/50 text-zinc-200 hover:text-white text-[13px] font-sans font-medium transition-all duration-200 flex items-center justify-center"
               >
                 <div className="absolute left-4 flex items-center justify-center">
-                  <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="none">
-                    <rect width="24" height="24" rx="12" fill="#FC3F1D" />
-                    <path d="M12.5 17h-1.5l1.3-6.5h-1.3c-.8 0-1.4-.6-1.4-1.4V8h1.4v.8c0 .2.2.3.3.3H12l1.3 5.4z M13.2 4.5H15l-1.3 5.2h-1.8l1.3-5.2z" fill="white" />
+                  <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="none" strokeLinecap="round" strokeLinejoin="round">
+                    <rect width="24" height="24" rx="12" fill="#FC3F1D" stroke="none" />
+                    <path d="M15 17v-10h-2a2.5 2.5 0 0 0 -2.5 2.5v0.5a2.5 2.5 0 0 0 2.5 2.5h2" stroke="white" strokeWidth="1.8" />
+                    <path d="M10 17l2 -4.5" stroke="white" strokeWidth="1.8" />
                   </svg>
                 </div>
                 <span>Войти через Яндекс</span>
