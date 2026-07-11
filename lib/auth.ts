@@ -1,6 +1,7 @@
 import { betterAuth } from 'better-auth'
 import { pool } from '@/lib/db'
 import nodemailer from 'nodemailer'
+import { genericOAuth } from 'better-auth/plugins'
 
 export const transporter = nodemailer.createTransport({
   host: 'smtp.gmail.com',
@@ -57,10 +58,6 @@ export const auth = betterAuth({
       clientId: process.env.GOOGLE_CLIENT_ID || '',
       clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
     },
-    yandex: {
-      clientId: process.env.YANDEX_ID || '',
-      clientSecret: process.env.YANDEX_SECRET || '',
-    },
   },
   trustedOrigins: [
     ...(process.env.NODE_ENV === 'development'
@@ -95,4 +92,32 @@ export const auth = betterAuth({
         },
       }
     : {}),
+  plugins: [
+    genericOAuth({
+      config: [
+        {
+          providerId: 'yandex',
+          clientId: process.env.YANDEX_ID || '',
+          clientSecret: process.env.YANDEX_SECRET || '',
+          authorizationUrl: 'https://oauth.yandex.ru/authorize',
+          tokenUrl: 'https://oauth.yandex.ru/token',
+          userInfoUrl: 'https://login.yandex.ru/info?format=json',
+          getUserInfo: async (tokens) => {
+            const res = await fetch('https://login.yandex.ru/info?format=json', {
+              headers: {
+                Authorization: `OAuth ${tokens.accessToken}`,
+              },
+            })
+            const data = await res.json()
+            return {
+              id: data.id,
+              name: data.real_name || data.display_name || data.login,
+              email: data.default_email || data.emails?.[0] || `yandex-${data.id}@spotard.app`,
+              image: data.is_avatar_empty ? null : `https://avatars.yandex.net/get-yapic/${data.default_avatar_id}/islands-200`,
+            }
+          },
+        },
+      ],
+    }),
+  ],
 })
