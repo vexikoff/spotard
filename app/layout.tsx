@@ -3,9 +3,9 @@ import type { Metadata, Viewport } from 'next'
 import { JetBrains_Mono, Manrope, Unbounded } from 'next/font/google'
 import './globals.css'
 
-const _manrope = Manrope({ subsets: ['latin', 'cyrillic'] })
-const _unbounded = Unbounded({ subsets: ['latin', 'cyrillic'], weight: ['400', '600', '800'] })
-const _jetbrainsMono = JetBrains_Mono({ subsets: ['latin', 'cyrillic'] })
+const manrope = Manrope({ subsets: ['latin', 'cyrillic'], variable: '--font-sans' })
+const unbounded = Unbounded({ subsets: ['latin', 'cyrillic'], weight: ['400', '600', '800'], variable: '--font-display' })
+const jetbrainsMono = JetBrains_Mono({ subsets: ['latin', 'cyrillic'], variable: '--font-mono' })
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://spotard.claus-maslov.space'),
@@ -59,7 +59,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="ru" className="bg-background">
+    <html lang="ru" className={`bg-background ${manrope.variable} ${unbounded.variable} ${jetbrainsMono.variable}`}>
       <body className="antialiased font-sans">
         {children}
         <script
