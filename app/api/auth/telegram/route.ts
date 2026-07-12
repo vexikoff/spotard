@@ -1,6 +1,5 @@
 import { db } from '@/lib/db'
-import { user } from '@/lib/db/schema'
-import { auth } from '@/lib/auth'
+import { user, session } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 import crypto from 'crypto'
 import { cookies } from 'next/headers'
@@ -118,16 +117,25 @@ export async function GET(req: NextRequest) {
 
   // Create session
   try {
-    const session = await auth.createSession({
+    const sessionId = crypto.randomUUID()
+    const token = crypto.randomBytes(32).toString('hex')
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
+
+    await db.insert(session).values({
+      id: sessionId,
+      token,
       userId: dbUser.id,
+      expiresAt,
+      ipAddress: req.headers.get('x-forwarded-for') || null,
+      userAgent: req.headers.get('user-agent') || null,
     })
 
     // Set cookie
     const cookieStore = await cookies()
-    cookieStore.set('better-auth.session-token', session.token, {
+    cookieStore.set('better-auth.session-token', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      expires: new Date(session.expiresAt),
+      expires: expiresAt,
       path: '/',
     })
 
