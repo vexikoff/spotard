@@ -15,7 +15,46 @@ export async function GET(req: NextRequest) {
   const hash = url.searchParams.get('hash')
 
   if (!id || !hash || !auth_date) {
-    return NextResponse.json({ error: 'Missing parameters' }, { status: 400 })
+    return new NextResponse(
+      `<!DOCTYPE html>
+<html>
+<head><title>Авторизация Telegram...</title></head>
+<body>
+  <div style="font-family: sans-serif; text-align: center; margin-top: 50px; color: #888;">
+    Авторизация через Telegram...
+  </div>
+  <script>
+    try {
+      const hash = window.location.hash;
+      if (hash && hash.includes('tgAuthResult=')) {
+        const base64 = hash.split('tgAuthResult=')[1].split('&')[0];
+        const normalized = base64.replace(/-/g, '+').replace(/_/g, '/');
+        const decoded = atob(normalized);
+        const data = JSON.parse(decoded);
+        
+        const params = new URLSearchParams();
+        for (const key in data) {
+          if (data[key] !== undefined && data[key] !== null) {
+            params.set(key, String(data[key]));
+          }
+        }
+        window.location.href = '/api/auth/telegram?' + params.toString();
+      } else {
+        document.body.innerHTML = '<div style="font-family: sans-serif; text-align: center; margin-top: 50px; color: #ff3b30;">Ошибка: Отсутствуют параметры авторизации</div>';
+      }
+    } catch (e) {
+      console.error(e);
+      document.body.innerHTML = '<div style="font-family: sans-serif; text-align: center; margin-top: 50px; color: #ff3b30;">Ошибка обработки данных Telegram</div>';
+    }
+  </script>
+</body>
+</html>`,
+      {
+        headers: {
+          'Content-Type': 'text/html; charset=utf-8',
+        },
+      }
+    )
   }
 
   // Verify hash using bot token
