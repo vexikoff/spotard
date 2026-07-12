@@ -84,7 +84,7 @@ const telegramAuthPlugin = () => {
               dbUser = created
             }
 
-            const session = await ctx.internalAdapter.createSession(dbUser.id)
+            const session = await ctx.context.internalAdapter.createSession(dbUser.id)
             await setSessionCookie(ctx, {
               session,
               user: dbUser,
@@ -193,7 +193,7 @@ const telegramAuthPlugin = () => {
             dbUser = created
           }
 
-          const session = await ctx.internalAdapter.createSession(dbUser.id)
+          const session = await ctx.context.internalAdapter.createSession(dbUser.id)
           await setSessionCookie(ctx, {
             session,
             user: dbUser,
