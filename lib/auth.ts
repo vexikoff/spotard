@@ -17,79 +17,92 @@ const telegramAuthPlugin = () => {
           method: 'GET',
         },
         async (ctx) => {
-          const id = ctx.query.id
-          const first_name = ctx.query.first_name
-          const username = ctx.query.username
-          const auth_date = ctx.query.auth_date
-          const hash = ctx.query.hash
+          try {
+            const id = ctx.query.id
+            const first_name = ctx.query.first_name
+            const username = ctx.query.username
+            const auth_date = ctx.query.auth_date
+            const hash = ctx.query.hash
 
-          if (!id || !hash || !auth_date) {
-            return ctx.json({ error: 'Missing parameters' }, { status: 400 })
-          }
-
-          const botToken = process.env.TELEGRAM_BOT_TOKEN
-          if (!botToken) {
-            return ctx.json({ error: 'Telegram authentication token not configured' }, { status: 500 })
-          }
-
-          const params: string[] = []
-          for (const key in ctx.query) {
-            if (key !== 'hash' && ctx.query[key]) {
-              params.push(`${key}=${ctx.query[key]}`)
+            if (!id || !hash || !auth_date) {
+              return ctx.json({ error: 'Missing parameters' }, { status: 400 })
             }
-          }
-          params.sort()
-          const dataCheckString = params.join('\n')
 
-          const secretKey = crypto.createHash('sha256').update(botToken).digest()
-          const computedHash = crypto
-            .createHmac('sha256', secretKey)
-            .update(dataCheckString)
-            .digest('hex')
-
-          if (computedHash !== hash) {
-            return ctx.json({ error: 'Invalid hash signature' }, { status: 403 })
-          }
-
-          const authTimestamp = parseInt(auth_date) * 1000
-          if (Date.now() - authTimestamp > 24 * 60 * 60 * 1000) {
-            return ctx.json({ error: 'Auth credentials expired' }, { status: 403 })
-          }
-
-          const email = `telegram-${id}@spotard.app`
-          const displayName = username || first_name || `tg_${id}`
-
-          const { db } = await import('@/lib/db')
-          const { user } = await import('@/lib/db/schema')
-          const { eq } = await import('drizzle-orm')
-
-          let dbUser = null
-          const [existing] = await db.select().from(user).where(eq(user.email, email)).limit(1)
-          if (existing) {
-            dbUser = existing
-            if (dbUser.banned) {
-              return ctx.json({ error: 'User is banned' }, { status: 403 })
+            const botToken = process.env.TELEGRAM_BOT_TOKEN
+            if (!botToken) {
+              return ctx.json({ error: 'Telegram authentication token not configured' }, { status: 500 })
             }
-          } else {
-            const [created] = await db
-              .insert(user)
-              .values({
-                id: `tg-${id}`,
-                name: displayName,
-                email,
-                emailVerified: true,
-              })
-              .returning()
-            dbUser = created
+
+            const params: string[] = []
+            for (const key in ctx.query) {
+              if (key !== 'hash' && ctx.query[key]) {
+                params.push(`${key}=${ctx.query[key]}`)
+              }
+            }
+            params.sort()
+            const dataCheckString = params.join('\n')
+
+            const secretKey = crypto.createHash('sha256').update(botToken).digest()
+            const computedHash = crypto
+              .createHmac('sha256', secretKey)
+              .update(dataCheckString)
+              .digest('hex')
+
+            if (computedHash !== hash) {
+              return ctx.json({ error: 'Invalid hash signature' }, { status: 403 })
+            }
+
+            const authTimestamp = parseInt(auth_date) * 1000
+            if (Date.now() - authTimestamp > 24 * 60 * 60 * 1000) {
+              return ctx.json({ error: 'Auth credentials expired' }, { status: 403 })
+            }
+
+            const email = `telegram-${id}@spotard.app`
+            const displayName = username || first_name || `tg_${id}`
+
+            const { db } = await import('@/lib/db')
+            const { user } = await import('@/lib/db/schema')
+            const { eq } = await import('drizzle-orm')
+
+            let dbUser = null
+            const [existing] = await db.select().from(user).where(eq(user.email, email)).limit(1)
+            if (existing) {
+              dbUser = existing
+              if (dbUser.banned) {
+                return ctx.json({ error: 'User is banned' }, { status: 403 })
+              }
+            } else {
+              const [created] = await db
+                .insert(user)
+                .values({
+                  id: `tg-${id}`,
+                  name: displayName,
+                  email,
+                  emailVerified: true,
+                })
+                .returning()
+              dbUser = created
+            }
+
+            const session = await ctx.internalAdapter.createSession(dbUser.id)
+            await setSessionCookie(ctx, {
+              session,
+              user: dbUser,
+            })
+
+            throw ctx.redirect('/')
+          } catch (e: any) {
+            // Rethrow redirects
+            if (e && (e.status === 302 || e.status === 301 || e.redirect || e.headers?.get?.('location') || e.headers?.location)) {
+              throw e
+            }
+            console.error('Error in telegramCallback:', e)
+            return ctx.json({
+              error: 'Internal Server Error',
+              message: e.message,
+              stack: e.stack
+            }, { status: 500 })
           }
-
-          const session = await ctx.internalAdapter.createSession(dbUser.id)
-          await setSessionCookie(ctx, {
-            session,
-            user: dbUser,
-          })
-
-          throw ctx.redirect('/')
         }
       ),
       telegramWebapp: createAuthEndpoint(
