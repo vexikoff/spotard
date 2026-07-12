@@ -302,7 +302,7 @@ export function AuthForm({ mode }: { mode: 'sign-in' | 'sign-up' }) {
                 type="button"
                 disabled={loading}
                 onClick={() => {
-                  window.location.href = 'https://oauth.telegram.org/auth?bot_id=7434526922&origin=https://spotard.claus-maslov.space&embed=1&request_access=write&return_to=https://spotard.claus-maslov.space/api/auth/telegram'
+                  window.location.href = 'https://oauth.telegram.org/auth?bot_id=8790995863&origin=https://spotard.claus-maslov.space&embed=1&request_access=write&return_to=https://spotard.claus-maslov.space/api/auth/telegram'
                 }}
                 className="w-12 h-12 rounded-xl bg-[#16171c] hover:bg-[#1e2027] transition-colors duration-200 flex items-center justify-center border-none outline-none cursor-pointer"
                 title="Войти через Telegram"
