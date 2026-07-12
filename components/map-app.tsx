@@ -50,7 +50,7 @@ export default function MapApp({ initialSpots }: { initialSpots: Spot[] }) {
   const router = useRouter()
   const { data: session, isPending: sessionLoading } = authClient.useSession()
   const currentUserId = session?.user?.id ?? null
-  const role = getUserRole(session?.user?.email, session?.user?.name)
+  const role = getUserRole(session?.user?.email)
   const isAdmin = role === 'admin'
   const isStaff = role === 'admin' || role === 'moderator'
 

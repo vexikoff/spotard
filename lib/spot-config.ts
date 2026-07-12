@@ -6,25 +6,15 @@ export const ADMIN_EMAILS = [
   'clausmaslov@gmail.com'
 ]
 
-export const ADMIN_NAMES = [
-  'Claus_Maslov',
-]
-
-// ==== СПИСОК МОДЕРАТОРОВ ====
 export const MODERATOR_EMAILS = [
   'moder-x5m@spotard.app',
   'vova72181@gmail.com'
 ]
 
-export const MODERATOR_NAMES = [
-  'Covek'
-]
-
 export type UserRole = 'admin' | 'moderator' | 'user'
 
 export function getUserRole(
-  email: string | null | undefined,
-  name?: string | null | undefined
+  email: string | null | undefined
 ): UserRole {
   const e = (email ?? '').toLowerCase()
 

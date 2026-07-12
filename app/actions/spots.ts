@@ -61,11 +61,11 @@ const SPOT_TYPES = [
 ]
 
 function isAdmin(user: { email: string; name?: string | null }) {
-  return getUserRole(user.email, user.name) === 'admin'
+  return getUserRole(user.email) === 'admin'
 }
 
 function isStaff(user: { email: string; name?: string | null }) {
-  const role = getUserRole(user.email, user.name)
+  const role = getUserRole(user.email)
   return role === 'admin' || role === 'moderator'
 }
 const SURFACES = ['concrete', 'asphalt', 'wood', 'metal', 'marble', 'brick', 'dirt']
@@ -238,7 +238,7 @@ export async function deleteSpot(id: number): Promise<void> {
 
 export async function reportSpot(spotId: number, reason: string): Promise<void> {
   const sessionUser = await getSessionUser()
-  if (getUserRole(sessionUser.email, sessionUser.name) === 'moderator') {
+  if (getUserRole(sessionUser.email) === 'moderator') {
     throw new Error('Модераторы не могут отправлять жалобы')
   }
   checkCooldown(sessionUser.id, 'report', 60000)
@@ -508,7 +508,7 @@ export async function checkUsernameExists(name: string): Promise<boolean> {
 
 export async function getUsersList() {
   const sessionUser = await getSessionUser()
-  if (getUserRole(sessionUser.email, sessionUser.name) !== 'admin') {
+  if (getUserRole(sessionUser.email) !== 'admin') {
     throw new Error('Нет доступа')
   }
   return db.select().from(user).orderBy(desc(user.createdAt))
@@ -516,7 +516,7 @@ export async function getUsersList() {
 
 export async function toggleBanUser(userId: string) {
   const sessionUser = await getSessionUser()
-  if (getUserRole(sessionUser.email, sessionUser.name) !== 'admin') {
+  if (getUserRole(sessionUser.email) !== 'admin') {
     throw new Error('Нет доступа')
   }
   const [existing] = await db.select().from(user).where(eq(user.id, userId))
