@@ -130,14 +130,23 @@ export async function GET(req: NextRequest) {
       userAgent: req.headers.get('user-agent') || null,
     })
 
-    // Set cookie
+    // Set cookies
     const cookieStore = await cookies()
-    cookieStore.set('better-auth.session-token', token, {
+    const isProd = process.env.NODE_ENV === 'production'
+    cookieStore.set('better-auth.session_token', token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: isProd,
       expires: expiresAt,
       path: '/',
     })
+    if (isProd) {
+      cookieStore.set('__Secure-better-auth.session_token', token, {
+        httpOnly: true,
+        secure: true,
+        expires: expiresAt,
+        path: '/',
+      })
+    }
 
     // Redirect to home
     return NextResponse.redirect(new URL('/', req.url))

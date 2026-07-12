@@ -103,12 +103,21 @@ export async function POST(req: NextRequest) {
     })
 
     const cookieStore = await cookies()
-    cookieStore.set('better-auth.session-token', token, {
+    const isProd = process.env.NODE_ENV === 'production'
+    cookieStore.set('better-auth.session_token', token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: isProd,
       expires: expiresAt,
       path: '/',
     })
+    if (isProd) {
+      cookieStore.set('__Secure-better-auth.session_token', token, {
+        httpOnly: true,
+        secure: true,
+        expires: expiresAt,
+        path: '/',
+      })
+    }
 
     return NextResponse.json({ success: true, user: dbUser })
   } catch (err: any) {
