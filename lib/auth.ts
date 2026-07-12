@@ -2,6 +2,196 @@ import { betterAuth } from 'better-auth'
 import { pool } from '@/lib/db'
 import nodemailer from 'nodemailer'
 import { genericOAuth } from 'better-auth/plugins'
+import { createAuthEndpoint } from 'better-auth/api'
+import { setSessionCookie } from 'better-auth/cookies'
+import type { BetterAuthPlugin } from 'better-auth'
+import crypto from 'crypto'
+
+const telegramAuthPlugin = () => {
+  return {
+    id: 'telegram-auth',
+    endpoints: {
+      telegramCallback: createAuthEndpoint(
+        '/telegram-callback',
+        {
+          method: 'GET',
+        },
+        async (ctx) => {
+          const id = ctx.query.id
+          const first_name = ctx.query.first_name
+          const username = ctx.query.username
+          const auth_date = ctx.query.auth_date
+          const hash = ctx.query.hash
+
+          if (!id || !hash || !auth_date) {
+            return ctx.json({ error: 'Missing parameters' }, { status: 400 })
+          }
+
+          const botToken = process.env.TELEGRAM_BOT_TOKEN
+          if (!botToken) {
+            return ctx.json({ error: 'Telegram authentication token not configured' }, { status: 500 })
+          }
+
+          const params: string[] = []
+          for (const key in ctx.query) {
+            if (key !== 'hash' && ctx.query[key]) {
+              params.push(`${key}=${ctx.query[key]}`)
+            }
+          }
+          params.sort()
+          const dataCheckString = params.join('\n')
+
+          const secretKey = crypto.createHash('sha256').update(botToken).digest()
+          const computedHash = crypto
+            .createHmac('sha256', secretKey)
+            .update(dataCheckString)
+            .digest('hex')
+
+          if (computedHash !== hash) {
+            return ctx.json({ error: 'Invalid hash signature' }, { status: 403 })
+          }
+
+          const authTimestamp = parseInt(auth_date) * 1000
+          if (Date.now() - authTimestamp > 24 * 60 * 60 * 1000) {
+            return ctx.json({ error: 'Auth credentials expired' }, { status: 403 })
+          }
+
+          const email = `telegram-${id}@spotard.app`
+          const displayName = username || first_name || `tg_${id}`
+
+          const { db } = await import('@/lib/db')
+          const { user } = await import('@/lib/db/schema')
+          const { eq } = await import('drizzle-orm')
+
+          let dbUser = null
+          const [existing] = await db.select().from(user).where(eq(user.email, email)).limit(1)
+          if (existing) {
+            dbUser = existing
+            if (dbUser.banned) {
+              return ctx.json({ error: 'User is banned' }, { status: 403 })
+            }
+          } else {
+            const [created] = await db
+              .insert(user)
+              .values({
+                id: `tg-${id}`,
+                name: displayName,
+                email,
+                emailVerified: true,
+              })
+              .returning()
+            dbUser = created
+          }
+
+          const session = await ctx.internalAdapter.createSession(dbUser.id)
+          await setSessionCookie(ctx, {
+            session,
+            user: dbUser,
+          })
+
+          throw ctx.redirect('/')
+        }
+      ),
+      telegramWebapp: createAuthEndpoint(
+        '/telegram/webapp',
+        {
+          method: 'POST',
+        },
+        async (ctx) => {
+          const body = ctx.body as any
+          const initData = body?.initData
+
+          if (!initData) {
+            return ctx.json({ error: 'Missing initData' }, { status: 400 })
+          }
+
+          const botToken = process.env.TELEGRAM_BOT_TOKEN
+          if (!botToken) {
+            return ctx.json({ error: 'Bot token not configured' }, { status: 500 })
+          }
+
+          const searchParams = new URLSearchParams(initData)
+          const hash = searchParams.get('hash')
+          if (!hash) {
+            return ctx.json({ error: 'Missing hash' }, { status: 400 })
+          }
+
+          const params: string[] = []
+          searchParams.forEach((val, key) => {
+            if (key !== 'hash') {
+              params.push(`${key}=${val}`)
+            }
+          })
+          params.sort()
+          const dataCheckString = params.join('\n')
+
+          const secretKey = crypto.createHmac('sha256', 'WebAppData').update(botToken).digest()
+          const computedHash = crypto
+            .createHmac('sha256', secretKey)
+            .update(dataCheckString)
+            .digest('hex')
+
+          if (computedHash !== hash) {
+            return ctx.json({ error: 'Invalid hash signature' }, { status: 403 })
+          }
+
+          const auth_date = searchParams.get('auth_date')
+          if (auth_date) {
+            const authTimestamp = parseInt(auth_date) * 1000
+            if (Date.now() - authTimestamp > 24 * 60 * 60 * 1000) {
+              return ctx.json({ error: 'Session expired' }, { status: 403 })
+            }
+          }
+
+          const userStr = searchParams.get('user')
+          if (!userStr) {
+            return ctx.json({ error: 'Missing user data' }, { status: 400 })
+          }
+
+          const tgUser = JSON.parse(userStr)
+          const id = tgUser.id
+          const first_name = tgUser.first_name
+          const username = tgUser.username
+
+          const email = `telegram-${id}@spotard.app`
+          const displayName = username || first_name || `tg_${id}`
+
+          const { db } = await import('@/lib/db')
+          const { user: userSchema } = await import('@/lib/db/schema')
+          const { eq } = await import('drizzle-orm')
+
+          let dbUser = null
+          const [existing] = await db.select().from(userSchema).where(eq(userSchema.email, email)).limit(1)
+          if (existing) {
+            dbUser = existing
+            if (dbUser.banned) {
+              return ctx.json({ error: 'User is banned' }, { status: 403 })
+            }
+          } else {
+            const [created] = await db
+              .insert(userSchema)
+              .values({
+                id: `tg-${id}`,
+                name: displayName,
+                email,
+                emailVerified: true,
+              })
+              .returning()
+            dbUser = created
+          }
+
+          const session = await ctx.internalAdapter.createSession(dbUser.id)
+          await setSessionCookie(ctx, {
+            session,
+            user: dbUser,
+          })
+
+          return ctx.json({ success: true, user: dbUser })
+        }
+      ),
+    },
+  } satisfies BetterAuthPlugin
+}
 
 export const transporter = nodemailer.createTransport({
   host: 'smtp.gmail.com',
@@ -126,5 +316,6 @@ export const auth = betterAuth({
         },
       ],
     }),
+    telegramAuthPlugin(),
   ],
 })
