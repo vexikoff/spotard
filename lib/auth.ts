@@ -20,6 +20,7 @@ const telegramAuthPlugin = () => {
           try {
             const id = ctx.query.id
             const first_name = ctx.query.first_name
+            const last_name = ctx.query.last_name
             const username = ctx.query.username
             const auth_date = ctx.query.auth_date
             const hash = ctx.query.hash
@@ -58,7 +59,8 @@ const telegramAuthPlugin = () => {
             }
 
             const email = `telegram-${id}@spotard.app`
-            const displayName = username || first_name || `tg_${id}`
+            const fullName = [first_name, last_name].filter(Boolean).join(' ')
+            const displayName = fullName || username || `tg_${id}`
 
             const { db } = await import('@/lib/db')
             const { user } = await import('@/lib/db/schema')
@@ -164,10 +166,12 @@ const telegramAuthPlugin = () => {
           const tgUser = JSON.parse(userStr)
           const id = tgUser.id
           const first_name = tgUser.first_name
+          const last_name = tgUser.last_name
           const username = tgUser.username
 
           const email = `telegram-${id}@spotard.app`
-          const displayName = username || first_name || `tg_${id}`
+          const fullName = [first_name, last_name].filter(Boolean).join(' ')
+          const displayName = fullName || username || `tg_${id}`
 
           const { db } = await import('@/lib/db')
           const { user: userSchema } = await import('@/lib/db/schema')
