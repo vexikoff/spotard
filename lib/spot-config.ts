@@ -2,7 +2,8 @@
 export const ADMIN_EMAILS = [
   'admin-x5m@spotard.app',
   'vexikoff@gmail.com',
-  'claus_maslov@gmail.com'
+  'claus_maslov@gmail.com',
+  'clausmaslov@gmail.com'
 ]
 
 export const ADMIN_NAMES = [
