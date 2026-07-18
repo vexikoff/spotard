@@ -56,7 +56,6 @@ export default function MapApp({ initialSpots }: { initialSpots: Spot[] }) {
 
   const { data: spots = initialSpots, mutate } = useSWR('spots', () => getSpots(), {
     fallbackData: initialSpots,
-    refreshInterval: 60000,
   })
 
   const { data: openReports = [], mutate: mutateReports } = useSWR(
@@ -209,7 +208,6 @@ export default function MapApp({ initialSpots }: { initialSpots: Spot[] }) {
   const { data: chatMessages = [], mutate: mutateChat } = useSWR(
     chatOpen ? 'chat' : null,
     () => getMessages(),
-    { refreshInterval: 60000 },
   )
   const [chatText, setChatText] = useState('')
 

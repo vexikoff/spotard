@@ -460,6 +460,8 @@ export async function getIpLocation(): Promise<{ lat: number; lng: number } | nu
   return null
 }
 
+let cachedStats: { spots: number; users: number; lastFetch: number } | null = null
+
 if (!globalRef.onlineTracker) {
   globalRef.onlineTracker = new Map()
 }
@@ -482,14 +484,28 @@ export async function pingOnline(clientId: string): Promise<{
     }
   }
 
-  // Count spots and users
-  const [spotsRes] = await db.select({ count: sql<number>`count(*)` }).from(spots)
-  const [usersRes] = await db.select({ count: sql<number>`count(*)` }).from(user)
+  // Cache counts for 5 minutes (300,000 ms)
+  if (!cachedStats || now - cachedStats.lastFetch > 300000) {
+    try {
+      const [spotsRes] = await db.select({ count: sql<number>`count(*)` }).from(spots)
+      const [usersRes] = await db.select({ count: sql<number>`count(*)` }).from(user)
+      cachedStats = {
+        spots: Number(spotsRes?.count ?? 0),
+        users: Number(usersRes?.count ?? 0),
+        lastFetch: now,
+      }
+    } catch (err) {
+      console.error('Failed to update cached stats:', err)
+      if (!cachedStats) {
+        cachedStats = { spots: 0, users: 0, lastFetch: 0 }
+      }
+    }
+  }
 
   return {
     online: tracker.size,
-    spots: Number(spotsRes?.count ?? 0),
-    users: Number(usersRes?.count ?? 0),
+    spots: cachedStats.spots,
+    users: cachedStats.users,
   }
 }
 
