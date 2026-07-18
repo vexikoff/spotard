@@ -484,8 +484,8 @@ export async function pingOnline(clientId: string): Promise<{
     }
   }
 
-  // Cache counts for 5 minutes (300,000 ms)
-  if (!cachedStats || now - cachedStats.lastFetch > 300000) {
+  // Cache counts for 30 seconds (30,000 ms)
+  if (!cachedStats || now - cachedStats.lastFetch > 30000) {
     try {
       const [spotsRes] = await db.select({ count: sql<number>`count(*)` }).from(spots)
       const [usersRes] = await db.select({ count: sql<number>`count(*)` }).from(user)
